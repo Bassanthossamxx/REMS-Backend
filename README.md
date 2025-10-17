@@ -2,7 +2,7 @@
 
 A Django REST Framework-based backend API for managing real estate properties, owners, tenants, rentals, and inventory. This CRM system provides comprehensive property management capabilities with RESTful endpoints.
 
-**Frontend:** [https://crmbild.netlify.app/dashboard](https://crmbild.netlify.app/dashboard)
+**Frontend:** [https://crmbild.netlify.app/dashboard](https://crmbild.netlify.app/)
 
 ## Table of Contents
 
