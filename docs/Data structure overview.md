@@ -101,27 +101,26 @@
 ### Fields:
 
 * **id**
-* **item_name** >> Required
-* **type**: Enum `(still under searching)`)
+* **item_name** >> Required 
+* **category**: Enum `(still under searching)`)
 * **unit_of_measure**: Enum → `["piece", "kg", "liter", "box", "set"] `(still under searching)
 * **amount**  >> Required
 * **lower_amount**  >> Required
 * **unit_price**  >> Required
-* **supplier_name**
+* **supplier_name** >> optional
 * **status**: Enum → `["in_stock", "low_stock", "out_of_stock"]` based on `amount` and `lower_amount`
 
 ---
 
-## Payments (Owner / Supplier / Misc.)
+## Owner revnue
 
 ### Fields:
 
 * **id**
-* **payment_type**: Enum → `["owner_payment", "supplier_payment", "other"]`
 * **amount** >> Required
 * **date** >> Required
-* **unit_id** → Reference `Unit` (if applicable " owner or supplier related to a specific unit")
 * **owner_id** → Reference `Owner` (if applicable)
+* **payment_way**: Enum → `["cash", "bank_transfer", "credit_card", "online_payment"]`
 * **notes** >> Optional
 
 ---
