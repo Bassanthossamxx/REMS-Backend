@@ -64,19 +64,26 @@ Represents real estate units available for rent or sale.
 | name          | CharField            | Unique identifier (allows letters, numbers, and hyphens) |
 | city          | ForeignKey(City)     | City where the unit is located                           |
 | district      | ForeignKey(District) | District of the unit                                     |
-| description   | TextField            | Unit details                                             |
-| price_per_day | DecimalField         | Optional; used for rental pricing                        |
-| area          | FloatField           | Unit size in square meters                               |
-| status        | ChoiceField          | Available, Rented, or Under Maintenance                  |
+| location_text   | TextField          | location text detailed; required                        |
+| details   | JsonField                | bedrooms , area , bathrooms , floor; required           |
+| lease_info   | JsonField                | two dates and will use them to notifaction; required           |
+| location_url  | URLField             | location url from map ; will need validation ; required                        |
+| description   | TextField            | Unit details; optional                                   |
+| price_per_day | DecimalField         | Optional; used for rental pricing  for day               |
+| owner_id      | UUID                 | forgien key choose owner name or id                      |
+| type          | choicesfield         | choose type based on frontend                            |
+| status        | ChoiceField          | Available, Rented, or Under Maintenance "rented will be based on rent table                  |
 | created_at    | DateTimeField        | Creation timestamp                                       |
 | updated_at    | DateTimeField        | Last update timestamp                                    |
+
+- Each unit will also be linked to its image URLs (stored as a JSON list), the tenant ID if currently rented, and the related rent record ID. This connection allows calculating the unit’s total payments, tracking its rental status, and determining the owner’s revenue and owned units.
 
 ---
 
 ### 3.4 UnitImages
 
 Represents images associated with each unit.
-
+minmal one image at leaset
 **Fields:**
 
 | Field       | Type             | Description      |
@@ -97,12 +104,14 @@ Represents property owners.
 | Field      | Type          | Description        |
 | ---------- | ------------- | ------------------ |
 | id         | UUID          | Primary key        |
-| full_name  | CharField     | Owner’s full name  |
-| phone      | CharField     | Contact number     |
+| full_name  | CharField     | Owner’s full name; required  |
+| phone      | CharField     | Contact number; required     |
 | email      | EmailField    | Optional           |
-| address    | TextField     | Optional           |
-| created_at | DateTimeField | Creation timestamp |
+| address    | TextField     | Optional               |
+| update_at | DateTimeField | update timestamp |
+| date_joined | DateTimeField | Creation timestamp |
 
+- will be linked with units tablee
 ---
 
 ### 3.6 Tenants
@@ -114,10 +123,10 @@ Represents individuals or companies renting units.
 | Field       | Type          | Description           |
 | ----------- | ------------- | --------------------- |
 | id          | UUID          | Primary key           |
-| full_name   | CharField     | Tenant’s full name    |
-| phone       | CharField     | Contact number        |
+| full_name   | CharField     | Tenant’s full name ; required    |
+| phone       | CharField     | Contact number; required         |
 | email       | EmailField    | Optional              |
-| national_id | CharField     | National or ID number |
+| address    | TextField     | Optional               |
 | created_at  | DateTimeField | Creation timestamp    |
 
 ---
@@ -138,7 +147,8 @@ Represents active or completed rental agreements between tenants and units.
 | total_amount   | DecimalField       | Total rent                     |
 | payment_status | ChoiceField        | Paid, Pending, or Overdue      |
 | payment_method | ChoiceField        | Cash, Bank Transfer, or Credit |
-| created_at     | DateTimeField      | Creation timestamp             |
+| payment_date     | DateTimeField      | Creation payment timestamp             |
+will add total revnue for super user and owner total after that to manage with owner revnue table
 
 ---
 
@@ -152,8 +162,12 @@ Represents items or materials used for maintenance or furnishing.
 | --------------- | ------------- | ------------------------------------ |
 | id              | UUID          | Primary key                          |
 | name            | CharField     | Item name                            |
-| quantity        | IntegerField  | Stock quantity                       |
+| category        | ChociesField     | Item category > choices and can post it too |                            |
+| quantity        | IntegerField  | Stock quantity                        |
+| lower_quantity        | IntegerField  | Stock quantity                        |
 | unit_of_measure | ChoiceField   | Piece, Box, Meter, etc.              |
+| unit_prices | intgerField       | price of one item
+| supplier_name | CharField   |  name of supplier; optional             |
 | status          | ChoiceField   | In Stock, Low Stock, or Out of Stock |
 | created_at      | DateTimeField | Creation timestamp                   |
 
@@ -168,6 +182,8 @@ The system allows filtering units by:
 * City
 * District
 * Status
+* date
+* type
 
 **Examples:**
 
