@@ -1,3 +1,36 @@
 from django.shortcuts import render
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.response import Response
+from rest_framework import generics, status
+from rest_framework.permissions import AllowAny
+from .serializers import SuperUserLoginSerializer
+from rest_framework.views import APIView
 
-# Create your views here.
+class SuperUserLoginView(generics.GenericAPIView):
+    serializer_class = SuperUserLoginSerializer
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data
+
+        refresh = RefreshToken.for_user(user)
+        return Response({
+    "message": "Logged in successfully",
+    "refresh": str(refresh),
+    "access": str(refresh.access_token)
+}, status=status.HTTP_200_OK)
+
+
+class LogoutView(APIView):
+    def post(self, request):
+        token = request.data.get("refresh")
+        if not token:
+            return Response({"error": "Refresh token required"}, status=400)
+        try:
+            RefreshToken(token).blacklist()
+            return Response({"message": "Logged out successfully"}, status=200)
+        except Exception:
+            return Response({"error": "Invalid token"}, status=400)
+
