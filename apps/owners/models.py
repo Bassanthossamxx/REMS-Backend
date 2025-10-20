@@ -1,3 +1,76 @@
 from django.db import models
+from decimal import Decimal
 
-# Create your models here.
+
+class Owner(models.Model):
+    full_name = models.CharField(max_length=255)
+    phone = models.CharField(max_length=20)
+    email = models.EmailField(blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    rate = models.DecimalField(max_digits=3, decimal_places=1, default=5.0)
+    date_joined = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.full_name
+
+
+class OwnerRevenue(models.Model):
+    """Tracks total rent and payments for each owner."""
+
+    class PaymentWay(models.TextChoices):
+        CASH = "cash", "Cash"
+        BANK_TRANSFER = "bank_transfer", "Bank Transfer"
+        CREDIT_CARD = "credit_card", "Credit Card"
+        ONLINE_PAYMENT = "online_payment", "Online Payment"
+
+    owner = models.ForeignKey(Owner, related_name="revenues", on_delete=models.CASCADE)
+    total_rent = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    paid_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    still_not_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_occasional = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    net_revenue = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    date = models.DateField(auto_now_add=True)
+    notes = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"OwnerRevenue({self.owner.full_name})"
+
+    def update_totals(self):
+        """Recalculate all revenue values dynamically."""
+        from units.models import OccasionalPayment
+
+        total_paid = self.payments.aggregate(total=models.Sum("amount"))["total"] or Decimal(0)
+        self.paid_total = total_paid
+
+        # Sum all rents for this owner’s units
+        from rents.models import Rent
+        total_rent = Rent.objects.filter(unit__owner=self.owner).aggregate(sum=models.Sum("total_amount"))["sum"] or Decimal(0)
+        self.total_rent = total_rent
+
+        # Sum all occasional payments for this owner’s units
+        total_occasional = OccasionalPayment.objects.filter(owner=self.owner).aggregate(sum=models.Sum("amount"))["sum"] or Decimal(0)
+        self.total_occasional = total_occasional
+
+        # Calculate what's still unpaid
+        self.net_revenue = max(self.total_rent - total_occasional, Decimal(0))
+        self.still_not_paid = max(self.net_revenue - self.paid_total, Decimal(0))
+
+        self.save()
+
+
+class OwnerPayment(models.Model):
+    """Each individual payment entry for an owner."""
+    revenue = models.ForeignKey(OwnerRevenue, related_name="payments", on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_date = models.DateTimeField(auto_now_add=True)
+    payment_way = models.CharField(max_length=20, choices=OwnerRevenue.PaymentWay.choices, blank=True, null=True)
+    note = models.TextField(blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Auto update totals whenever a payment is added or changed
+        self.revenue.update_totals()
+
+    def __str__(self):
+        return f"{self.amount} paid to {self.revenue.owner.full_name}"
