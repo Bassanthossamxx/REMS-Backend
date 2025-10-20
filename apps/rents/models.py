@@ -39,7 +39,7 @@ class Rent(models.Model):
         self.unit.update_status()
 
         # Update or create owner revenue
-        from owners.models import OwnerRevenue
+        from apps.owners.models import OwnerRevenue
         revenue, _ = OwnerRevenue.objects.get_or_create(owner=self.unit.owner)
         revenue.update_totals()
 

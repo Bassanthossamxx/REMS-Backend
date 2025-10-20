@@ -1,7 +1,7 @@
 from django.db import models
 from decimal import Decimal
-from core.models import City, District
-from owners.models import Owner
+from apps.core.models import City, District
+from apps.owners.models import Owner
 
 
 class Unit(models.Model):
@@ -37,15 +37,15 @@ class Unit(models.Model):
 
     def update_status(self):
         """Auto mark unit as occupied if there is an active rent."""
-        from rents.models import Rent
+        from apps.rents.models import Rent
         active = Rent.objects.filter(unit=self, rent_start__lte=models.F("rent_end")).exists()
         self.status = self.Status.OCCUPIED if active else self.Status.AVAILABLE
         self.save(update_fields=["status"])
 
     def update_financials(self):
         """Recalculate all money values for this unit."""
-        from rents.models import Rent
-        from units.models import OccasionalPayment
+        from apps.rents.models import Rent
+        from apps.units.models import OccasionalPayment
 
         total_rent = Rent.objects.filter(unit=self).aggregate(total=models.Sum("total_amount"))["total"] or Decimal(0)
         total_occ = OccasionalPayment.objects.filter(unit=self).aggregate(total=models.Sum("amount"))["total"] or Decimal(0)
