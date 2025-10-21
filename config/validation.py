@@ -8,7 +8,7 @@ def validate_map_url(value):
     """
     pattern = re.compile(
         r"^(https?://)?(www\.)?"
-        r"(google\.com/maps|goo\.gl/maps|maps\.apple\.com\.org)"
+        r"(google\.com/maps|goo\.gl/maps|maps\.apple\.com|maps\.app\.goo\.gl)"
     )
     if not pattern.search(value):
         raise ValidationError("Invalid map URL. Please provide a valid map link.")

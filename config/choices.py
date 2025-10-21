@@ -12,3 +12,15 @@ class PaymentType(models.TextChoices):
     REPAIR = "repair", "Repair"
     CLEANING = "cleaning", "Cleaning"
     OTHER = "other", "Other"
+
+# units types options
+UNIT_TYPES = [
+    ('apartment', 'Apartment'),
+    ('villa', 'Villa'),
+    ('office', 'Office'),
+    ('shop', 'Shop'),
+    ('studio', 'Studio'),
+    ('penthouse', 'Penthouse'),
+    ('warehouse', 'Warehouse'),
+    ('retail', 'Retail'),
+]

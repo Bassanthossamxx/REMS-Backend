@@ -2,9 +2,12 @@ from django.shortcuts import render
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
 from rest_framework import generics, status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAdminUser
 from .serializers import SuperUserLoginSerializer
 from rest_framework.views import APIView
+from rest_framework.viewsets import ModelViewSet
+from apps.core.models import City, District
+from apps.core.serializers import CitySerializer, DistrictSerializer
 
 class SuperUserLoginView(generics.GenericAPIView):
     serializer_class = SuperUserLoginSerializer
@@ -34,3 +37,17 @@ class LogoutView(APIView):
         except Exception:
             return Response({"error": "Invalid token"}, status=400)
 
+class CityViewSet(ModelViewSet):
+    queryset = City.objects.prefetch_related('district_set').all()
+    serializer_class = CitySerializer
+    permission_classes = [IsAdminUser]
+
+class DistrictViewSet(ModelViewSet):
+    queryset = District.objects.select_related('city').all()
+    serializer_class = DistrictSerializer
+    permission_classes = [IsAdminUser]
+
+    def perform_create(self, serializer):
+        if not serializer.validated_data.get('city'):
+            raise serializers.ValidationError({"city": "City is required."})
+        serializer.save()

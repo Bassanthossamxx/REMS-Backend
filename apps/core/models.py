@@ -39,8 +39,6 @@ class User(AbstractUser):
     def __str__(self):
         return self.email
 
-import uuid
-from django.db import models
 
 class City(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -49,21 +47,20 @@ class City(models.Model):
 
     class Meta:
         verbose_name_plural = "Cities"
-        ordering = ["name"]
 
     def __str__(self):
         return self.name
 
 
 class District(models.Model):
-    city = models.ForeignKey(City, related_name="districts", on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
+    city = models.ForeignKey(City, on_delete=models.CASCADE, related_name="district_set")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ("city", "name")
-        ordering = ["city__name", "name"]
+        unique_together = ('name', 'city')
+        verbose_name_plural = "Districts"
 
     def __str__(self):
         return f"{self.name} ({self.city.name})"
