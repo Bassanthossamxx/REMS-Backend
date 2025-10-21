@@ -1,20 +1,18 @@
 from django.db import models
 from decimal import Decimal
+from django.utils import timezone
 from apps.core.models import City, District
 from apps.owners.models import Owner
+from config.choices import Status, PaymentType
+from config.validation import validate_map_url
 
 
 class Unit(models.Model):
-    class Status(models.TextChoices):
-        AVAILABLE = "available", "Available"
-        OCCUPIED = "occupied", "Occupied"
-        IN_MAINTENANCE = "in_maintenance", "In Maintenance"
-
-    name = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=100, unique=True)
     owner = models.ForeignKey(Owner, related_name="units", on_delete=models.CASCADE)
     city = models.ForeignKey(City, related_name="units", on_delete=models.CASCADE)
     district = models.ForeignKey(District, related_name="units", on_delete=models.CASCADE)
-    location_url = models.URLField()
+    location_url = models.URLField(validators=[validate_map_url])
     location_text = models.TextField()
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.AVAILABLE)
 
@@ -38,8 +36,15 @@ class Unit(models.Model):
     def update_status(self):
         """Auto mark unit as occupied if there is an active rent."""
         from apps.rents.models import Rent
-        active = Rent.objects.filter(unit=self, rent_start__lte=models.F("rent_end")).exists()
-        self.status = self.Status.OCCUPIED if active else self.Status.AVAILABLE
+
+        today = timezone.now().date()
+        active = Rent.objects.filter(
+            unit=self,
+            rent_start__lte=today,
+            rent_end__gte=today
+        ).exists()
+
+        self.status = Status.OCCUPIED if active else Status.AVAILABLE
         self.save(update_fields=["status"])
 
     def update_financials(self):
@@ -49,6 +54,7 @@ class Unit(models.Model):
 
         total_rent = Rent.objects.filter(unit=self).aggregate(total=models.Sum("total_amount"))["total"] or Decimal(0)
         total_occ = OccasionalPayment.objects.filter(unit=self).aggregate(total=models.Sum("amount"))["total"] or Decimal(0)
+
         owner_share = (total_rent * self.owner_percentage) / Decimal(100)
         my_revenue = total_rent - owner_share - total_occ
 
@@ -57,6 +63,27 @@ class Unit(models.Model):
         self.total_owner_revenue = owner_share
         self.total_my_revenue = my_revenue
         self.save()
+
+    @property
+    def current_tenant(self):
+        """Return active tenant details if unit is occupied."""
+        from apps.rents.models import Rent
+
+        today = timezone.now().date()
+        rent = (
+            Rent.objects
+            .filter(unit=self, rent_start__lte=today, rent_end__gte=today)
+            .select_related("tenant")
+            .first()
+        )
+
+        if rent:
+            return {
+                "name": rent.tenant.full_name,
+                "rent_start": rent.rent_start,
+                "rent_end": rent.rent_end,
+            }
+        return None
 
 
 class UnitImage(models.Model):
@@ -69,12 +96,6 @@ class UnitImage(models.Model):
 
 class OccasionalPayment(models.Model):
     """Extra costs to subtract from revenue — maintenance, cleaning, etc."""
-    class PaymentType(models.TextChoices):
-        MAINTENANCE = "maintenance", "Maintenance"
-        REPAIR = "repair", "Repair"
-        CLEANING = "cleaning", "Cleaning"
-        OTHER = "other", "Other"
-
     unit = models.ForeignKey(Unit, related_name="occasional_payments", on_delete=models.CASCADE)
     owner = models.ForeignKey(Owner, related_name="occasional_payments", on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
@@ -87,8 +108,8 @@ class OccasionalPayment(models.Model):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        # Update unit + owner revenue
         self.unit.update_financials()
-        from owners.models import OwnerRevenue
+
+        from apps.owners.models import OwnerRevenue
         revenue, _ = OwnerRevenue.objects.get_or_create(owner=self.owner)
         revenue.update_totals()
