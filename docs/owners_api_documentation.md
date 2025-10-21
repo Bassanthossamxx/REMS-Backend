@@ -65,6 +65,8 @@ Headers:
 
 Query parameters:
 - `page` (optional): page number
+- `search` (optional): case-insensitive partial match on owner `full_name`
+  - Examples: `?search=John`, `?search=doe`
 
 Response 200 (application/json):
 ```
@@ -106,6 +108,8 @@ Response 200 (application/json):
   ]
 }
 ```
+
+
 
 Errors:
 - 401 Unauthorized if missing/invalid token

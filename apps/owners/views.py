@@ -10,6 +10,7 @@ class OwnerListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminUser]
     queryset = Owner.objects.all()
     serializer_class = OwnerSerializer
+    search_fields = ['full_name']
 
     def get_queryset(self):
         return (
