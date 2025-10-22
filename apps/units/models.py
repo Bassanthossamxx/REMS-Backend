@@ -62,6 +62,44 @@ class Unit(models.Model):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        # Detect previous owner before saving (if updating existing instance)
+        prev_owner_id = None
+        if self.pk:
+            prev_owner_id = type(self).objects.filter(pk=self.pk).values_list("owner_id", flat=True).first()
+
+        super().save(*args, **kwargs)
+
+        # Recompute financials WITHOUT calling self.save() to avoid recursion
+        from django.db.models import Sum
+        # Aggregate totals
+        total_rent = Rent.objects.filter(unit=self).aggregate(total=models.Sum("total_amount"))["total"] or Decimal(0)
+        from apps.units.models import OccasionalPayment  # local import
+        total_occ = OccasionalPayment.objects.filter(unit=self).aggregate(total=models.Sum("amount"))["total"] or Decimal(0)
+        owner_share = (total_rent * (self.owner_percentage or Decimal(0))) / Decimal(100)
+        my_revenue = total_rent - owner_share - total_occ
+        type(self).objects.filter(pk=self.pk).update(
+            total_rent=total_rent,
+            total_occasional=total_occ,
+            total_owner_revenue=owner_share,
+            total_my_revenue=my_revenue,
+        )
+        # Ensure the in-memory instance reflects new totals for serializers/responses
+        self.total_rent = total_rent
+        self.total_occasional = total_occ
+        self.total_owner_revenue = owner_share
+        self.total_my_revenue = my_revenue
+
+        # Update OwnerRevenue for current and previous owners
+        from apps.owners.models import OwnerRevenue, Owner as OwnerModel
+        revenue, _ = OwnerRevenue.objects.get_or_create(owner=self.owner)
+        revenue.update_totals()
+        if prev_owner_id and prev_owner_id != self.owner_id:
+            prev_owner = OwnerModel.objects.filter(pk=prev_owner_id).first()
+            if prev_owner:
+                prev_rev, _ = OwnerRevenue.objects.get_or_create(owner=prev_owner)
+                prev_rev.update_totals()
+
     def update_status(self):
         """Auto mark unit as occupied if there is an active rent."""
         from apps.rents.models import Rent

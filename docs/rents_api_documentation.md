@@ -32,9 +32,9 @@ Writeable fields (send in POST/PUT/PATCH):
 | rent_start     | date     | Yes      | YYYY-MM-DD                                                      | —           | Must be <= rent_end |
 | rent_end       | date     | Yes      | YYYY-MM-DD                                                      | —           | Must be >= rent_start |
 | total_amount   | decimal  | Yes      | String decimal, e.g., "1500.00"                                 | —           | max_digits=12, decimal_places=2 |
-| payment_status | string   | No       | paid | pending | overdue                                        | pending     | Choice field |
-| payment_method | string   | No       | cash | bank_transfer | credit_card | online_payment                  | null        | Choice field |
-| payment_date   | datetime | No       | ISO 8601 (e.g., 2025-10-06T09:00:00Z)                           | now()       | Optional; set if provided |
+| payment_status | string   | Yes      | paid | pending | overdue                                        | —           | Choice field |
+| payment_method | string   | Yes      | cash | bank_transfer | credit_card | online_payment                  | —           | Choice field |
+| payment_date   | datetime | Yes      | ISO 8601 (e.g., 2025-10-06T09:00:00Z)                           | —           | Provide explicit timestamp |
 | notes          | string   | No       | Any                                                            | null        | Optional text |
 | attachment     | file     | No       | multipart/form-data file                                       | null        | Optional file upload |
 
@@ -55,7 +55,7 @@ Read-only computed fields (returned in responses):
 
 ## Validation Rules
 
-- Required fields: unit, tenant, rent_start, rent_end, total_amount.
+- Required fields: unit, tenant, rent_start, rent_end, total_amount, payment_status, payment_method, payment_date.
 - Date order: rent_end must be on or after rent_start.
 - Choice validation:
   - payment_status must be one of: paid, pending, overdue.
@@ -111,17 +111,41 @@ Notes
 - payment_date accepts ISO 8601; include timezone (e.g., trailing Z for UTC) to avoid ambiguity.
 - If payment_date is omitted, it defaults to the server current time.
 
-### F) Overlapping rents
-- The API does not currently prevent creating overlapping rents for the same unit.
-- The unit’s occupied/available status is computed based on whether today falls within any rent window.
-- If you need to forbid overlaps, add client-side checks or request a server-side validation enhancement.
+### F) Overlapping rents and availability (enforced)
+- The API now prevents overlapping rents.
+  - A unit cannot have two rents whose date ranges overlap.
+  - A tenant cannot have overlapping rents across different units.
+- The unit must be available when:
+  - Creating a rent (current status must be Available).
+  - The requested rent period includes today.
+- Error examples (400 Bad Request):
+```json
+{ "unit": ["This unit already has a rent overlapping with the selected dates."] }
+```
+```json
+{ "tenant": ["This tenant already has another rent overlapping with the selected dates."] }
+```
+```json
+{ "unit": ["Unit is not currently available to create a rent."] }
+```
+```json
+{ "unit": ["Unit is not available for the selected period including today."] }
+```
 
 ## Requests and Responses
 
 ### 1) List Rents
 - Method: GET
 - URL: /api/rents/
-- Query params: none
+- Query params:
+  - unit (integer): Filter by Unit ID. Alias: unit_id.
+  - tenant (integer): Filter by Tenant ID. Alias: tenant_id.
+  - When both are provided, results match both (AND semantics).
+
+Examples:
+- /api/rents/?unit=7
+- /api/rents/?tenant=3
+- /api/rents/?unit_id=7&tenant_id=3
 
 Success response (200 OK):
 ```json
@@ -134,7 +158,7 @@ Success response (200 OK):
     "rent_end": "2025-11-10",
     "total_amount": "1500.00",
     "payment_status": "pending",
-    "payment_method": null,
+    "payment_method": "cash",
     "payment_date": "2025-10-05T12:34:56Z",
     "status": "pending",
     "notes": "First-time renter",
@@ -178,6 +202,8 @@ Request body (JSON):
   "rent_end": "2025-11-10",
   "total_amount": "1500.00",
   "payment_status": "pending",
+  "payment_method": "cash",
+  "payment_date": "2025-10-05T12:34:56Z",
   "notes": "First-time renter"
 }
 ```
@@ -192,7 +218,7 @@ Success response (201 Created):
   "rent_end": "2025-11-10",
   "total_amount": "1500.00",
   "payment_status": "pending",
-  "payment_method": null,
+  "payment_method": "cash",
   "payment_date": "2025-10-05T12:34:56Z",
   "status": "pending",
   "notes": "First-time renter",
@@ -211,8 +237,14 @@ Success response (201 Created):
 Validation error response (400 Bad Request):
 ```json
 {
-  "rent_end": [
-    "Rent end date cannot be earlier than rent start date."
+  "payment_status": [
+    "This field is required."
+  ],
+  "payment_method": [
+    "This field is required."
+  ],
+  "payment_date": [
+    "This field is required."
   ]
 }
 ```
@@ -221,6 +253,13 @@ Other example errors (400):
 {
   "payment_status": [
     "\"done\" is not a valid choice."
+  ]
+}
+```
+```json
+{
+  "rent_end": [
+    "Rent end date cannot be earlier than rent start date."
   ]
 }
 ```
@@ -284,7 +323,7 @@ Success response (200 OK):
 ```
 
 Possible errors:
-- 400 Bad Request (invalid choices, invalid date order, invalid foreign keys)
+- 400 Bad Request (invalid choices, invalid date order, invalid foreign keys, missing required fields)
 - 401/403 Auth/permission errors
 - 404 Not Found (invalid rent id)
 
@@ -298,4 +337,3 @@ Success response:
 Possible errors:
 - 401/403 Auth/permission errors
 - 404 Not Found (invalid rent id)
----

@@ -72,3 +72,15 @@ class Rent(models.Model):
 
         # Update unit financial stats
         self.unit.update_financials()
+
+    def delete(self, *args, **kwargs):
+        """Ensure unit availability and finances are recalculated when a rent is removed."""
+        unit = self.unit
+        owner = unit.owner
+        super().delete(*args, **kwargs)
+        # After deletion, refresh unit status and financials
+        unit.update_status()
+        unit.update_financials()
+        from apps.owners.models import OwnerRevenue
+        revenue, _ = OwnerRevenue.objects.get_or_create(owner=owner)
+        revenue.update_totals()
