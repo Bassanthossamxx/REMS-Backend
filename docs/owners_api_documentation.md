@@ -8,8 +8,12 @@ Authentication and permissions:
 - Authentication: JWT Bearer token required in the `Authorization` header: `Authorization: Bearer <token>`
 - Permissions: Admin users only (non-admin users will receive HTTP 403 Forbidden)
 
+Content types:
+- Requests: `application/json`
+- Responses: `application/json` (Decimals are serialized as strings, e.g., "150.00")
+
 Pagination:
-- The list endpoint uses page-number pagination
+- Page-number pagination
 - Query parameter: `page` (default page size is 20)
 - Response shape: `{ count, next, previous, results: [...] }`
 
@@ -19,11 +23,11 @@ Pagination:
 
 Fields present in list and detail responses:
 - `id` (integer)
-- `full_name` (string, unique, required)
-- `phone` (string, unique, required)
-- `email` (string, unique, optional; may be null)
+- `full_name` (string, unique, required; max 255 chars)
+- `phone` (string, unique, required; max 20 chars)
+- `email` (string, unique, optional; may be null; must be a valid email if provided)
 - `address` (string, optional; may be null)
-- `rate` (decimal as string, one decimal place allowed; must be between 1.0 and 5.0 inclusive)
+- `rate` (decimal string with 1 fraction digit; allowed range 1.0 to 5.0 inclusive; default `5.0`)
 - `date_joined` (ISO 8601 datetime, read-only)
 - `updated_at` (ISO 8601 datetime, read-only)
 - `units_count` (integer, computed)
@@ -31,10 +35,15 @@ Fields present in list and detail responses:
 - `monthly_revenue` (decimal string with 2 fraction digits, computed)
 - `units` (array of unit summary objects, computed)
 
+Unit status options:
+- `available`
+- `occupied`
+- `in_maintenance`
+
 Unit summary object fields (inside `units`):
 - `id` (integer)
 - `name` (string)
-- `status` (string, e.g., `available` or `occupied`)
+- `status` (string; one of the options above)
 - `price_per_day` (decimal string with 2 fraction digits)
 - `tenant_name` (string or null; active tenant if present, otherwise latest tenant)
 - `rent_price` (decimal string or null; from active/latest rent)
@@ -48,11 +57,11 @@ Unit summary object fields (inside `units`):
 
 Revenue calculation notes:
 - `total_revenue`: Sum of the owner’s share across all rents for this owner’s units, where share = `rent.total_amount * (unit.owner_percentage / 100)`
-- `monthly_revenue`: Same share formula but only for rents created in the current month (based on `Rent.created_at`)
+- `monthly_revenue`: Same share formula but only for rents created in the current month (based on `Rent.created_at` in UTC)
 
 Validation rules:
 - `full_name`, `phone`, `email` must be unique across owners (email is optional; multiple null emails are allowed at the database level)
-- `rate` must be between 1.0 and 5.0 (inclusive); values like `2.5` are allowed
+- `rate` must be between 1.0 and 5.0 (inclusive); one decimal place is stored
 
 ---
 
@@ -65,9 +74,8 @@ Headers:
 
 Query parameters:
 - `page` (optional): page number
-- `search` (optional): case-insensitive partial match on owner `full_name`
-  - Examples: `?search=John`, `?search=doe`
-
+- `search` (optional): case-insensitive partial match on `full_name`
+- Examples: `?search=John`, `?search=doe`
 Response 200 (application/json):
 ```
 {
@@ -109,11 +117,11 @@ Response 200 (application/json):
 }
 ```
 
-
-
 Errors:
 - 401 Unauthorized if missing/invalid token
+  - Example: `{ "detail": "Authentication credentials were not provided." }`
 - 403 Forbidden if user is not an admin
+  - Example: `{ "detail": "You do not have permission to perform this action." }`
 
 ---
 
@@ -137,9 +145,9 @@ Request body:
 ```
 
 Notes:
-- `full_name` (required, unique)
-- `phone` (required, unique)
-- `email` (optional, unique)
+- `full_name` (required, unique, max 255)
+- `phone` (required, unique, max 20)
+- `email` (optional, unique if provided)
 - `rate` (optional; defaults to 5.0; must be between 1.0 and 5.0)
 
 Response 201 (application/json): returns the full Owner object including computed fields (see Owner object shape)
@@ -169,6 +177,18 @@ Validation error examples (400 Bad Request):
   "phone": ["owner with this phone already exists."]
 }
 ```
+- Duplicate email:
+```
+{
+  "email": ["owner with this email already exists."]
+}
+```
+- Invalid email format:
+```
+{
+  "email": ["Enter a valid email address."]
+}
+```
 - Invalid rate:
 ```
 {
@@ -195,6 +215,7 @@ Errors:
 - 401 Unauthorized
 - 403 Forbidden
 - 404 Not Found if the owner does not exist
+  - Example: `{ "detail": "Not found." }`
 
 ---
 
@@ -220,7 +241,7 @@ Request body (send all mutable fields):
 Response 200 (application/json): Full Owner object
 
 Errors:
-- 400 Bad Request on uniqueness violations or invalid `rate`
+- 400 Bad Request on uniqueness violations, invalid email, or invalid `rate`
 - 401 Unauthorized
 - 403 Forbidden
 - 404 Not Found

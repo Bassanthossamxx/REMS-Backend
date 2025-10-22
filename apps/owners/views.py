@@ -4,7 +4,6 @@ from .models import Owner
 from .serializers import OwnerSerializer
 from rest_framework.permissions import IsAdminUser
 
-# Create your views here.
 
 class OwnerListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAdminUser]
