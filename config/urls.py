@@ -10,9 +10,10 @@ urlpatterns = [
     path('api/', include('apps.tenants.urls')),
     path('api/', include('apps.units.urls')),  # Include units app URLs
     path('api/', include('apps.owners.urls')),  # Include owners app URLs
+    path('api/', include('apps.rents.urls')),  # Include rents app URLs
 
     # API Documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
