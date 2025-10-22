@@ -7,7 +7,6 @@ class RentSerializer(serializers.ModelSerializer):
     # Read-only, computed fields
     unit_name = serializers.SerializerMethodField(read_only=True)
     unit_type = serializers.SerializerMethodField(read_only=True)
-    unit_type_value = serializers.SerializerMethodField(read_only=True)
     tenant_name = serializers.SerializerMethodField(read_only=True)
     tenant_email = serializers.SerializerMethodField(read_only=True)
     tenant_phone = serializers.SerializerMethodField(read_only=True)
@@ -21,7 +20,7 @@ class RentSerializer(serializers.ModelSerializer):
             "payment_status", "payment_method", "payment_date", "status",
             "notes", "attachment", "created_at",
             # computed fields
-            "unit_name", "unit_type", "unit_type_value",
+            "unit_name", "unit_type",
             "tenant_name", "tenant_email", "tenant_phone",
             "duration",
         ]
@@ -92,9 +91,6 @@ class RentSerializer(serializers.ModelSerializer):
             return obj.unit.get_type_display()
         except Exception:
             return getattr(obj.unit, "type", None)
-
-    def get_unit_type_value(self, obj):
-        return getattr(obj.unit, "type", None)
 
     def get_tenant_name(self, obj):
         return getattr(obj.tenant, "full_name", None)

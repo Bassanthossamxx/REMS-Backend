@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from rest_framework import viewsets
 from rest_framework.permissions import IsAdminUser
+from rest_framework.response import Response
 from apps.rents.models import Rent
 from apps.rents.serializers import RentSerializer
 
@@ -28,3 +29,32 @@ class RentViewSet(viewsets.ModelViewSet):
             qs = qs.filter(tenant_id=tenant_id)
 
         return qs
+
+    # --- Ensure fresh computed data on every GET ---
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        page = self.paginate_queryset(queryset)
+        items = page if page is not None else list(queryset)
+
+        # Recompute status and cascade updates by saving each item
+        for rent in items:
+            try:
+                rent.save()
+            except Exception:
+                # Avoid breaking the response if a single item fails to update
+                pass
+
+        serializer = self.get_serializer(items, many=True)
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            instance.save()
+        except Exception:
+            pass
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)

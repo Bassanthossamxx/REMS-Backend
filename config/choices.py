@@ -43,3 +43,9 @@ class PaymentMethod(models.TextChoices):
     BANK_TRANSFER = "bank_transfer", "Bank Transfer"
     CREDIT_CARD = "credit_card", "Credit Card"
     ONLINE_PAYMENT = "online_payment", "Online Payment"
+
+# Tenant lifecycle status options
+class TenantStatus(models.TextChoices):
+    ACTIVE = "active", "Active"          # has a rent currently ongoing
+    COMPLETED = "completed", "Completed"  # has past rents only, none upcoming
+    INACTIVE = "inactive", "Inactive"    # no rents at all (or only upcoming)
