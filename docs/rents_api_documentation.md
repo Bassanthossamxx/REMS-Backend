@@ -66,6 +66,8 @@ Read-only computed fields (returned in responses):
 - Status is auto-computed; do not send status in requests.
 - Attachment uploads require multipart/form-data; otherwise use application/json.
 - Permission: non-admin access is forbidden.
+- Overlap validation on updates: overlap checks run on create and when changing any of these fields: unit, tenant, rent_start, rent_end. Purely editing other fields (e.g., total_amount, notes, payment_method/status/date) will not trigger overlap errors.
+  - For partial updates, prefer PATCH with only the changed fields.
 
 ## Edge Cases and Behavior Notes
 
@@ -115,6 +117,7 @@ Notes
 - The API now prevents overlapping rents.
   - A unit cannot have two rents whose date ranges overlap.
   - A tenant cannot have overlapping rents across different units.
+- On updates, overlap is checked only when you change unit, tenant, rent_start, or rent_end.
 - The unit must be available when:
   - Creating a rent (current status must be Available).
   - The requested rent period includes today.

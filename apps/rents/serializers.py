@@ -36,10 +36,13 @@ class RentSerializer(serializers.ModelSerializer):
     # --- Validators ---
     def validate(self, attrs):
         instance = getattr(self, "instance", None)
-        unit = attrs.get("unit") or getattr(instance, "unit", None)
-        tenant = attrs.get("tenant") or getattr(instance, "tenant", None)
-        rent_start = attrs.get("rent_start") or getattr(instance, "rent_start", None)
-        rent_end = attrs.get("rent_end") or getattr(instance, "rent_end", None)
+        is_create = instance is None
+
+        # Resolve current values considering partial updates
+        unit = attrs.get("unit") or (instance.unit if instance else None)
+        tenant = attrs.get("tenant") or (instance.tenant if instance else None)
+        rent_start = attrs.get("rent_start") or (instance.rent_start if instance else None)
+        rent_end = attrs.get("rent_end") or (instance.rent_end if instance else None)
 
         # Basic date order check
         if rent_start and rent_end and rent_end < rent_start:
@@ -47,8 +50,21 @@ class RentSerializer(serializers.ModelSerializer):
                 "rent_end": "Rent end date cannot be earlier than rent start date.",
             })
 
-        # Overlap checks only when we have unit, tenant, and both dates
-        if unit and tenant and rent_start and rent_end:
+        # Determine if overlap-sensitive fields changed on update
+        overlap_fields = ("unit", "tenant", "rent_start", "rent_end")
+        changed_overlap_fields = False
+        if not is_create:
+            for f in overlap_fields:
+                if f in attrs:
+                    old_val = getattr(instance, f)
+                    new_val = attrs.get(f, old_val)
+                    if old_val != new_val:
+                        changed_overlap_fields = True
+                        break
+
+        # Run overlap checks on create or when overlap-affecting fields change
+        should_check_overlap = is_create or changed_overlap_fields
+        if should_check_overlap and unit and tenant and rent_start and rent_end:
             qs = Rent.objects.all()
             if instance and instance.pk:
                 qs = qs.exclude(pk=instance.pk)
