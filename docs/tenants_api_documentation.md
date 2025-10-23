@@ -4,7 +4,7 @@ This document provides an overview of the endpoints available in the Tenants app
 
 ## Base URL
 ```
-http://<your-server-domain>/tenants/
+baseurl/api/
 ```
 
 ## Endpoints
@@ -15,15 +15,28 @@ http://<your-server-domain>/tenants/
 Retrieve a list of tenants with optional filtering and search.
 
 #### Query Parameters:
-- `search` (string, optional): Search by tenant name or unit name.
+- `search` (string, optional): Case-insensitive partial search across tenant full name and unit name (e.g. `?search=john` or `?search=Unit%20A`). The search looks into `full_name` and the related unit's `name`.
 - `status` (string, optional): Filter by rent status. Possible values:
   - `active`
   - `completed`
   - `overdue`
   - `pending`
   - `inactive`
+- Pagination query params (standard DRF): `page`, `page_size` (if pagination is enabled).
 
-#### Response:
+Notes about `search` behavior:
+- The endpoint uses Django REST Framework's SearchFilter. Multiple words in the `search` parameter are treated as separate terms and matched across the configured fields (`full_name`, `rents__unit__name`) using case-insensitive partial matches.
+- Example: `GET /tenants/?search=john+doe` will return tenants where either `full_name` or the unit name contains `john` AND/OR `doe` depending on configured search behavior (DRF default combines terms with AND).
+
+#### Examples:
+- Search by tenant name:
+  - `GET /tenants/?search=John`
+- Search by unit name:
+  - `GET /tenants/?search=Unit%20A`
+- Combine with status filter:
+  - `GET /tenants/?search=John&status=active`
+
+#### Response (list):
 ```json
 [
     {
@@ -141,4 +154,5 @@ Delete a tenant by their ID.
 ## Notes
 - All endpoints require admin permissions.
 - Ensure proper authentication headers are included in the requests.
-- Use the `search` and `status` query parameters in the list endpoint to filter results effectively.
+- Use the `status` query parameters in the list endpoint to filter results effectively.
+- The `search` parameter searches both tenant full name and related unit name (configured in the view as `search_fields = ["full_name", "rents__unit__name"]`).

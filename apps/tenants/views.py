@@ -5,6 +5,7 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAdminUser
+from rest_framework.filters import SearchFilter
 
 from apps.tenants.models import Tenant
 from apps.rents.models import Rent
@@ -20,7 +21,9 @@ class TenantViewSet(ModelViewSet):
         )
     )
     serializer_class = TenantListSerializer
-    filter_backends = [DjangoFilterBackend]
+    # Allow filtering by the existing TenantFilter and searching by tenant name or unit name
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    search_fields = ["full_name", "rents__unit__name"]
     filterset_class = TenantFilter
     permission_classes = [IsAdminUser]
 
