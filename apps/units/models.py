@@ -71,8 +71,11 @@ class Unit(models.Model):
 
     def update_status(self):
         """
-        Set status to OCCUPIED if there is an active rent today,
-        otherwise AVAILABLE. Does NOT modify lease_start/lease_end.
+        Enforce status rules based on active rents:
+        - If there is an active rent today => force status to OCCUPIED.
+        - If there is no active rent today and current status is OCCUPIED => revert to AVAILABLE.
+        - If status is IN_MAINTENANCE => keep it as is regardless of active rent.
+        Does NOT modify lease_start/lease_end.
         """
         from django.utils import timezone
         from apps.rents.models import Rent
@@ -84,9 +87,18 @@ class Unit(models.Model):
             rent_end__gte=today,
         ).exists()
 
-        new_status = Status.OCCUPIED if active else Status.AVAILABLE
+        # Keep maintenance as is
+        if self.status == Status.IN_MAINTENANCE:
+            return
 
-        if self.status != new_status:
+        # Determine new status
+        new_status = None
+        if active and self.status != Status.OCCUPIED:
+            new_status = Status.OCCUPIED
+        elif not active and self.status == Status.OCCUPIED:
+            new_status = Status.AVAILABLE
+
+        if new_status and self.status != new_status:
             type(self).objects.filter(pk=self.pk).update(status=new_status)
             self.status = new_status
 
