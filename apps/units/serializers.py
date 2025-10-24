@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from rest_framework.serializers import ImageField
 from apps.units.models import Unit, UnitImage
-from apps.owners.models import Owner  # Assuming the Owner model is in apps.owners.models
+from apps.owners.models import Owner
+
 
 class UnitListSerializer(serializers.ModelSerializer):
     city_name = serializers.CharField(source="city.name", read_only=True)
@@ -11,6 +12,7 @@ class UnitListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Unit
         fields = [
+            "id",
             "name",
             "location_text",
             "city_name",
@@ -19,6 +21,8 @@ class UnitListSerializer(serializers.ModelSerializer):
             "price_per_day",
             "type",
             "status",
+            "lease_start",
+            "lease_end",
         ]
         read_only_fields = fields
 
@@ -40,43 +44,43 @@ class UnitSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Unit
-        fields = '__all__'  # Include all fields from the Unit model
+        fields = "__all__"
 
     def create(self, validated_data):
-        images = validated_data.pop('images', [])
+        images = validated_data.pop("images", [])
         unit = super().create(validated_data)
 
         for image in images:
             UnitImage.objects.create(unit=unit, image=image)
 
+        unit.update_status()
         return unit
 
     def update(self, instance, validated_data):
-        images = validated_data.pop('images', None)
+        images = validated_data.pop("images", None)
         unit = super().update(instance, validated_data)
 
         if images is not None:
-            unit.images.all().delete()
+            instance.images.all().delete()
             for image in images:
                 UnitImage.objects.create(unit=unit, image=image)
 
+        unit.update_status()
         return unit
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        representation['details'] = {
-            'type': instance.type,  # Corrected from 'unit_type' to 'type'
-            'bedrooms': instance.bedrooms,
-            'bathrooms': instance.bathrooms,
-            'area': instance.area
+        representation["details"] = {
+            "type": instance.type,
+            "bedrooms": instance.bedrooms,
+            "bathrooms": instance.bathrooms,
+            "area": instance.area,
         }
+        # Include related images
+        representation["images"] = [
+            image.image.url for image in instance.images.all()
+        ]
         return representation
-
-    def filter_queryset(self, queryset):
-        unit_type = self.context['request'].query_params.get('type', None)
-        if unit_type:
-            queryset = queryset.filter(unit_type__iexact=unit_type)
-        return queryset
 
 
 class UnitImageSerializer(serializers.ModelSerializer):
@@ -84,4 +88,4 @@ class UnitImageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UnitImage
-        fields = ['id', 'unit', 'image']
+        fields = ["id", "unit", "image"]

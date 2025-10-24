@@ -1,13 +1,12 @@
 from django.db import models
 from decimal import Decimal
-from django.utils import timezone
 from apps.core.models import City, District
 from apps.owners.models import Owner
-from config.choices import Status, PaymentType , UNIT_TYPES
+from config.choices import Status, UNIT_TYPES
 from config.validation import validate_map_url
 from cloudinary.models import CloudinaryField
 from django.core.validators import MinValueValidator, MaxValueValidator
-from apps.rents.models import Rent
+from django.core.exceptions import ValidationError
 
 
 class Unit(models.Model):
@@ -52,105 +51,45 @@ class Unit(models.Model):
         help_text="Owner's percentage (e.g., 30 or 50.5). Required.",
         default=0
     )
-
-    # Totals
-    total_rent = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    total_occasional = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    total_owner_revenue = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    total_my_revenue = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    lease_start = models.DateField()
+    lease_end = models.DateField()
 
     def __str__(self):
         return self.name
 
-    def save(self, *args, **kwargs):
-        # Detect previous owner before saving (if updating existing instance)
-        prev_owner_id = None
-        if self.pk:
-            prev_owner_id = type(self).objects.filter(pk=self.pk).values_list("owner_id", flat=True).first()
+    def clean(self):
+        # Ensure lease_end is strictly after lease_start
+        if self.lease_start and self.lease_end and self.lease_end <= self.lease_start:
+            raise ValidationError({
+                'lease_end': 'Lease end date must be after lease start date.'
+            })
 
+    def save(self, *args, **kwargs):
+        # Validate model before saving
+        self.full_clean()
         super().save(*args, **kwargs)
 
-        # Recompute financials WITHOUT calling self.save() to avoid recursion
-        from django.db.models import Sum
-        # Aggregate totals
-        total_rent = Rent.objects.filter(unit=self).aggregate(total=models.Sum("total_amount"))["total"] or Decimal(0)
-        from apps.units.models import OccasionalPayment  # local import
-        total_occ = OccasionalPayment.objects.filter(unit=self).aggregate(total=models.Sum("amount"))["total"] or Decimal(0)
-        owner_share = (total_rent * (self.owner_percentage or Decimal(0))) / Decimal(100)
-        my_revenue = total_rent - owner_share - total_occ
-        type(self).objects.filter(pk=self.pk).update(
-            total_rent=total_rent,
-            total_occasional=total_occ,
-            total_owner_revenue=owner_share,
-            total_my_revenue=my_revenue,
-        )
-        # Ensure the in-memory instance reflects new totals for serializers/responses
-        self.total_rent = total_rent
-        self.total_occasional = total_occ
-        self.total_owner_revenue = owner_share
-        self.total_my_revenue = my_revenue
-
-        # Update OwnerRevenue for current and previous owners
-        from apps.owners.models import OwnerRevenue, Owner as OwnerModel
-        revenue, _ = OwnerRevenue.objects.get_or_create(owner=self.owner)
-        revenue.update_totals()
-        if prev_owner_id and prev_owner_id != self.owner_id:
-            prev_owner = OwnerModel.objects.filter(pk=prev_owner_id).first()
-            if prev_owner:
-                prev_rev, _ = OwnerRevenue.objects.get_or_create(owner=prev_owner)
-                prev_rev.update_totals()
-
     def update_status(self):
-        """Auto mark unit as occupied if there is an active rent."""
+        """
+        Set status to OCCUPIED if there is an active rent today,
+        otherwise AVAILABLE. Does NOT modify lease_start/lease_end.
+        """
+        from django.utils import timezone
         from apps.rents.models import Rent
 
         today = timezone.now().date()
         active = Rent.objects.filter(
             unit=self,
             rent_start__lte=today,
-            rent_end__gte=today
+            rent_end__gte=today,
         ).exists()
 
-        self.status = Status.OCCUPIED if active else Status.AVAILABLE
-        self.save(update_fields=["status"])
+        new_status = Status.OCCUPIED if active else Status.AVAILABLE
 
-    def update_financials(self):
-        """Recalculate all money values for this unit."""
-        total_rent = Rent.objects.filter(unit=self).aggregate(total=models.Sum("total_amount"))["total"] or Decimal(0)
+        if self.status != new_status:
+            type(self).objects.filter(pk=self.pk).update(status=new_status)
+            self.status = new_status
 
-        # Local import to avoid circular dependency
-        from apps.units.models import OccasionalPayment
-        total_occ = OccasionalPayment.objects.filter(unit=self).aggregate(total=models.Sum("amount"))["total"] or Decimal(0)
-
-        owner_share = (total_rent * self.owner_percentage) / Decimal(100)
-        my_revenue = total_rent - owner_share - total_occ
-
-        self.total_rent = total_rent
-        self.total_occasional = total_occ
-        self.total_owner_revenue = owner_share
-        self.total_my_revenue = my_revenue
-        self.save()
-
-    @property
-    def current_tenant(self):
-        """Return active tenant details if unit is occupied."""
-        from apps.rents.models import Rent
-
-        today = timezone.now().date()
-        rent = (
-            Rent.objects
-            .filter(unit=self, rent_start__lte=today, rent_end__gte=today)
-            .select_related("tenant")
-            .first()
-        )
-
-        if rent:
-            return {
-                "name": rent.tenant.full_name,
-                "rent_start": rent.rent_start,
-                "rent_end": rent.rent_end,
-            }
-        return None
 
 class UnitImage(models.Model):
     unit = models.ForeignKey(Unit, related_name="images", on_delete=models.CASCADE)
