@@ -52,3 +52,28 @@ class TenantStatus(models.TextChoices):
     ACTIVE = "active", "Active"          # has a rent currently ongoing
     COMPLETED = "completed", "Completed"  # has past rents only, none upcoming
     INACTIVE = "inactive", "Inactive"    # no rents at all (or only upcoming)
+
+CATEGORY_CHOICES = [
+        ("Maintenance", "Maintenance"),
+        ("Electrical", "Electrical"),
+        ("Plumbing", "Plumbing"),
+        ("Security", "Security"),
+        ("Cleaning", "Cleaning"),
+        ("Furniture", "Furniture"),
+    ]
+
+UNIT_CHOICES = [
+        ("Pieces", "Pieces"),
+        ("Boxes", "Boxes"),
+        ("Gallons", "Gallons"),
+        ("Liters", "Liters"),
+        ("Kits", "Kits"),
+        ("Sets", "Sets"),
+        ("Meters", "Meters"),
+        ("Feet", "Feet"),
+    ]
+STATUS_CHOICES = [
+        ("In Stock", "In Stock"),
+        ("Low Stock", "Low Stock"),
+        ("Out of Stock", "Out of Stock"),
+    ]

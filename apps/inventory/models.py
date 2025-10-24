@@ -1,39 +1,15 @@
-import uuid
 from django.db import models
+from config.choices import STATUS_CHOICES , UNIT_CHOICES ,CATEGORY_CHOICES
 
 class Inventory(models.Model):
-    CATEGORY_CHOICES = [
-        ("Maintenance", "Maintenance"),
-        ("Electrical", "Electrical"),
-        ("Plumbing", "Plumbing"),
-        ("Security", "Security"),
-        ("Cleaning", "Cleaning"),
-        ("Furniture", "Furniture"),
-    ]
-
-    UNIT_CHOICES = [
-        ("Pieces", "Pieces"),
-        ("Boxes", "Boxes"),
-        ("Gallons", "Gallons"),
-        ("Liters", "Liters"),
-        ("Kits", "Kits"),
-        ("Sets", "Sets"),
-        ("Meters", "Meters"),
-        ("Feet", "Feet"),
-    ]
-
-    STATUS_CHOICES = [
-        ("In Stock", "In Stock"),
-        ("Low Stock", "Low Stock"),
-        ("Out of Stock", "Out of Stock"),
-    ]
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
-    quantity = models.PositiveIntegerField(default=0)
-    lower_quantity = models.PositiveIntegerField(default=5)
+    quantity = models.PositiveIntegerField()
+    lower_quantity = models.PositiveIntegerField()
     unit_of_measure = models.CharField(max_length=50, choices=UNIT_CHOICES)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
-    total_value = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_value = models.DecimalField(max_digits=12, decimal_places=2)
     supplier_name = models.CharField(max_length=255, blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="In Stock")
     created_at = models.DateTimeField(auto_now_add=True)
