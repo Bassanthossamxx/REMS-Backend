@@ -2,7 +2,9 @@
 
 A Django REST Framework-based backend API for managing real estate properties, owners, tenants, rentals, and inventory. This CRM system provides comprehensive property management capabilities with RESTful endpoints.
 
-**Frontend:** [https://crmbild.netlify.app/dashboard](https://crmbild.netlify.app/)
+**Postman Doc** : https://documenter.getpostman.com/view/37742819/2sB3Wjz3tt
+
+**Frontend:** [https://crmbild.netlify.app/](https://crmbild.netlify.app/)
 
 ## Table of Contents
 
@@ -39,7 +41,9 @@ REMS-Backend/
 ├── config/                     # Project configuration
 │   ├── __init__.py
 │   ├── settings.py            # Main settings file
-│   ├── urls.py                # Root URL configuration
+│   ├── urls.py                # Root URL configuration'
+│   ├── choices.py              # all app choices
+│   ├── validations.py          # validations syste
 │   ├── wsgi.py                # WSGI configuration
 │   └── asgi.py                # ASGI configuration
 │
@@ -75,9 +79,13 @@ REMS-Backend/
 │       ├── serializers.py
 │       ├── views.py
 │       └── urls.py
+│   └── Payments/         # any payments system
+│       ├── models.py
+│       ├── serializers.py
+│       ├── views.py
+│       └── urls.py
 │
 ├── docs/                       # Documentation for API and project details
-│   └── Data structure overview.md # overview in progress for project data models
 ├── manage.py                   # Django management script
 ├── requirements.txt            # Python dependencies
 └── README.md                   # This file
@@ -199,20 +207,20 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-The server will start at `http://127.0.0.1:8000/`
+The server will start
 
 ### 5. Access the Application
 
 - **API Root**: `http://127.0.0.1:8000/api/`
 - **Admin Panel**: `http://127.0.0.1:8000/admin/`
-- **Swagger Documentation**: `http://127.0.0.1:8000/api/docs/`
+- **Swagger Documentation**: `http://127.0.0.1:8000/`
 
 ## API Documentation
 
 The project uses **drf-spectacular** for automatic API documentation:
 
 - **Swagger UI**: Interactive API documentation with request/response examples
-  - URL: `/api/docs/`
+  - URL: `baseurl`
 . also there is an docs folder with docs for apis and overview and erd under development
 ---
 ### all rights back to @bassanthossamxx 
