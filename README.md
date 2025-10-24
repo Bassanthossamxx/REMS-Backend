@@ -1,7 +1,8 @@
 # Real Estate Management System Server
 
 A Django REST Framework-based backend API for managing real estate properties, owners, tenants, rentals, and inventory. This CRM system provides comprehensive property management capabilities with RESTful endpoints.
-**postman Doc** : https://documenter.getpostman.com/view/37742819/2sB3Wjz3tt
+
+**Postman Doc** : https://documenter.getpostman.com/view/37742819/2sB3Wjz3tt
 
 **Frontend:** [https://crmbild.netlify.app/](https://crmbild.netlify.app/)
 
