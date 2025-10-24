@@ -7,7 +7,7 @@ from config.validation import validate_map_url
 from cloudinary.models import CloudinaryField
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
-
+from datetime import date
 
 class Unit(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -51,8 +51,8 @@ class Unit(models.Model):
         help_text="Owner's percentage (e.g., 30 or 50.5). Required.",
         default=0
     )
-    lease_start = models.DateField()
-    lease_end = models.DateField()
+    lease_start = models.DateField(default=date.today)
+    lease_end = models.DateField(default=date.today)
 
     def __str__(self):
         return self.name

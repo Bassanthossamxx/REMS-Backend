@@ -6,13 +6,6 @@ class Status(models.TextChoices):
     OCCUPIED = "occupied", "Occupied"
     IN_MAINTENANCE = "in_maintenance", "In Maintenance"
 
-# Occasional Payment types options
-class PaymentType(models.TextChoices):
-    MAINTENANCE = "maintenance", "Maintenance"
-    REPAIR = "repair", "Repair"
-    CLEANING = "cleaning", "Cleaning"
-    OTHER = "other", "Other"
-
 # units types options
 UNIT_TYPES = [
     ('apartment', 'Apartment'),
@@ -43,6 +36,16 @@ class PaymentMethod(models.TextChoices):
     BANK_TRANSFER = "bank_transfer", "Bank Transfer"
     CREDIT_CARD = "credit_card", "Credit Card"
     ONLINE_PAYMENT = "online_payment", "Online Payment"
+
+# Occasional payment categories (utilities/services)
+class OccasionalPaymentCategory(models.TextChoices):
+    WIFI = "wifi", "WiFi"
+    WATER = "water", "Water"
+    ELECTRICITY = "electricity", "Electricity"
+    CLEANING = "cleaning", "Cleaning"
+    MAINTENANCE = "maintenance", "Maintenance"
+    REPAIR = "repair", "Repair"
+    OTHER = "other", "Other"
 
 # Tenant lifecycle status options
 class TenantStatus(models.TextChoices):
