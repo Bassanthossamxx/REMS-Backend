@@ -120,36 +120,48 @@ Pagination: `page=1..`
 
 200 OK (paginated)
 
+Returns a compact projection per unit with these fields only:
+
+- name (string)
+- location_text (string)
+- city_name (string)
+- district_name (string)
+- current_tenant_name (string or null if no active tenant)
+- price_per_day (decimal as string)
+- type (string)
+- status (string)
+
 ```json
 {
-  "count": 1,
+  "count": 2,
   "next": null,
   "previous": null,
   "results": [
     {
-      "id": 12,
       "name": "Unit A-101",
-      "owner": 3,
-      "city": 1,
-      "district": 5,
-      "location_url": "https://www.google.com/maps/place/...",
       "location_text": "5th Avenue, Building 2",
-      "status": "available",
-      "type": "apartment",
-      "bedrooms": 2,
-      "bathrooms": 1,
-      "area": 90,
+      "city_name": "Cairo",
+      "district_name": "Nasr City",
+      "current_tenant_name": null,
       "price_per_day": "120.00",
-      "owner_percentage": "30.00",
-      "total_rent": "0.00",
-      "total_occasional": "0.00",
-      "total_owner_revenue": "0.00",
-      "total_my_revenue": "0.00",
-      "details": { "type": "apartment", "bedrooms": 2, "bathrooms": 1, "area": 90 }
+      "type": "apartment",
+      "status": "available"
+    },
+    {
+      "name": "Unit B-202",
+      "location_text": "Downtown",
+      "city_name": "Giza",
+      "district_name": "Dokki",
+      "current_tenant_name": "John Doe",
+      "price_per_day": "180.00",
+      "type": "villa",
+      "status": "occupied"
     }
   ]
 }
 ```
+
+> Note: The list endpoint returns a compact payload. Use [Retrieve Unit](#12-retrieve-unit) for the full detailed shape.
 
 ---
 
@@ -239,6 +251,8 @@ DELETE `/api/units/{id}/`
 
 ### Notes (Units)
 
+* List endpoint returns a compact shape: `name, location_text, city_name, district_name, current_tenant_name (null if none), price_per_day, type, status`.
+* Use retrieve to get the full unit details.
 * Images are write-only: accepted on create/update, not returned in GET.
 * `from_date` and `to_date` include units with no rents.
 

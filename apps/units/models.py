@@ -158,24 +158,3 @@ class UnitImage(models.Model):
 
     def __str__(self):
         return f"Image for {self.unit.name}"
-
-
-class OccasionalPayment(models.Model):
-    """Extra costs to subtract from revenue — maintenance, cleaning, etc."""
-    unit = models.ForeignKey(Unit, related_name="occasional_payments", on_delete=models.CASCADE)
-    owner = models.ForeignKey(Owner, related_name="occasional_payments", on_delete=models.CASCADE)
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
-    payment_type = models.CharField(max_length=30, choices=PaymentType.choices)
-    description = models.TextField(blank=True, null=True)
-    date = models.DateField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.payment_type} - {self.amount} ({self.unit.name})"
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        self.unit.update_financials()
-
-        from apps.owners.models import OwnerRevenue
-        revenue, _ = OwnerRevenue.objects.get_or_create(owner=self.owner)
-        revenue.update_totals()

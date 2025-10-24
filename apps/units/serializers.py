@@ -3,6 +3,30 @@ from rest_framework.serializers import ImageField
 from apps.units.models import Unit, UnitImage
 from apps.owners.models import Owner  # Assuming the Owner model is in apps.owners.models
 
+class UnitListSerializer(serializers.ModelSerializer):
+    city_name = serializers.CharField(source="city.name", read_only=True)
+    district_name = serializers.CharField(source="district.name", read_only=True)
+    current_tenant_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Unit
+        fields = [
+            "name",
+            "location_text",
+            "city_name",
+            "district_name",
+            "current_tenant_name",
+            "price_per_day",
+            "type",
+            "status",
+        ]
+        read_only_fields = fields
+
+    def get_current_tenant_name(self, obj: Unit):
+        ct = getattr(obj, "current_tenant", None)
+        return (ct or {}).get("name") if ct else None
+
+
 class UnitSerializer(serializers.ModelSerializer):
     images = serializers.ListField(
         child=serializers.ImageField(),
