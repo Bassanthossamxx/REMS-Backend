@@ -21,7 +21,6 @@ def start_of_current_month_date() -> date:
 
 def unit_payments_summary(unit_id: int) -> dict:
     """
-    Existing helper retained: totals for occasional payments only.
     Returns dict with keys:
       - total_occasional_payment: Decimal
       - total_occasional_payment_last_month: Decimal
@@ -49,8 +48,6 @@ def unit_payments_summary(unit_id: int) -> dict:
         "last_month_qs": last_month_qs.order_by("id"),
     }
 
-
-# --- New analytics helpers ---
 
 def calculate_owner_payment_summary(owner_id: int) -> dict:
     owner = Owner.objects.get(pk=owner_id)
@@ -139,13 +136,13 @@ def calculate_owner_payment_summary(owner_id: int) -> dict:
             "unit_id": u.id,
             "unit_name": u.name,
             "owner_percentage": frac.quantize(Decimal("0.0001")),
-            "total_before_all_time": before_all.quantize(Decimal("0.01")),
-            "total_occasional_all_time": occ_all.quantize(Decimal("0.01")),
-            "total_after_all_time": after_all.quantize(Decimal("0.01")),
-            "owner_total_all_time": o_all,
-            "total_before_this_month": before_m.quantize(Decimal("0.01")),
+            "total": before_all.quantize(Decimal("0.01")),
+            "total_this_month": before_m.quantize(Decimal("0.01")),
+            "total_occasional": occ_all.quantize(Decimal("0.01")),
             "total_occasional_this_month": occ_m.quantize(Decimal("0.01")),
-            "total_after_this_month": after_m.quantize(Decimal("0.01")),
+            "total_after_occasional": after_all.quantize(Decimal("0.01")),
+            "total_after_occasional_this_month": after_m.quantize(Decimal("0.01")),
+            "owner_total": o_all,
             "owner_total_this_month": o_m,
         })
         owner_total_all_time += o_all
@@ -163,16 +160,14 @@ def calculate_owner_payment_summary(owner_id: int) -> dict:
     return {
         "owner_id": owner.id,
         "owner_name": owner.full_name,
-        "total_before_this_month": total_before_this_month.quantize(Decimal("0.01")),
-        "total_before_all_time": total_before_all_time.quantize(Decimal("0.01")),
+        "total_this_month": total_before_this_month.quantize(Decimal("0.01")),
+        "total": total_before_all_time.quantize(Decimal("0.01")),
         "total_occasional_this_month": total_occasional_this_month.quantize(Decimal("0.01")),
-        "total_occasional_all_time": total_occasional_all_time.quantize(Decimal("0.01")),
-        "total_after_this_month": total_after_this_month.quantize(Decimal("0.01")),
-        "total_after_all_time": total_after_all_time.quantize(Decimal("0.01")),
+        "total_occasional": total_occasional_all_time.quantize(Decimal("0.01")),
+        "total_after_occasional_this_month": total_after_this_month.quantize(Decimal("0.01")),
+        "total_after_occasional": total_after_all_time.quantize(Decimal("0.01")),
         "owner_total_this_month": owner_total_this_month.quantize(Decimal("0.01")),
-        "owner_total_all_time": owner_total_all_time.quantize(Decimal("0.01")),
-        "company_total_this_month": company_total_this_month,
-        "company_total_all_time": company_total_all_time,
+        "owner_total": owner_total_all_time.quantize(Decimal("0.01")),
         "paid_to_owner_total": Decimal(paid_to_owner_total).quantize(Decimal("0.01")),
         "still_need_to_pay": still_need_to_pay,
         "units": unit_rows,
@@ -218,16 +213,14 @@ def calculate_unit_payment_summary(unit_id: int) -> dict:
         "owner_id": unit.owner_id,
         "owner_name": unit.owner.full_name,
         "owner_percentage": frac.quantize(Decimal("0.0001")),
-        "total_before_this_month": total_before_this_month.quantize(Decimal("0.01")),
-        "total_before_all_time": total_before_all_time.quantize(Decimal("0.01")),
+        "total_this_month": total_before_this_month.quantize(Decimal("0.01")),
+        "total": total_before_all_time.quantize(Decimal("0.01")),
         "total_occasional_this_month": total_occasional_this_month.quantize(Decimal("0.01")),
-        "total_occasional_all_time": total_occasional_all_time.quantize(Decimal("0.01")),
-        "total_after_this_month": total_after_this_month.quantize(Decimal("0.01")),
-        "total_after_all_time": total_after_all_time.quantize(Decimal("0.01")),
-        "owner_total_this_month": owner_total_this_month,
-        "owner_total_all_time": owner_total_all_time,
+        "total_occasional": total_occasional_all_time.quantize(Decimal("0.01")),
+        "total_after_occasional_this_month": total_after_this_month.quantize(Decimal("0.01")),
+        "total_after_occasional": total_after_all_time.quantize(Decimal("0.01")),
         "company_total_this_month": company_total_this_month,
-        "company_total_all_time": company_total_all_time,
+        "company_total": company_total_all_time,
     }
 
 
@@ -310,16 +303,16 @@ def calculate_company_payment_summary(unit_id: int | None = None) -> dict:
     company_total_this_month = (total_after_this_month - owner_total_this_month).quantize(Decimal("0.01"))
 
     payload: Dict[str, Any] = {
-        "total_before_this_month": total_before_this_month.quantize(Decimal("0.01")),
-        "total_before_all_time": total_before_all_time.quantize(Decimal("0.01")),
+        "total_this_month": total_before_this_month.quantize(Decimal("0.01")),
+        "total": total_before_all_time.quantize(Decimal("0.01")),
         "total_occasional_this_month": total_occasional_this_month.quantize(Decimal("0.01")),
-        "total_occasional_all_time": total_occasional_all_time.quantize(Decimal("0.01")),
-        "total_after_this_month": total_after_this_month.quantize(Decimal("0.01")),
-        "total_after_all_time": total_after_all_time.quantize(Decimal("0.01")),
+        "total_occasional": total_occasional_all_time.quantize(Decimal("0.01")),
+        "total_after_occasional_this_month": total_after_this_month.quantize(Decimal("0.01")),
+        "total_after_occasional": total_after_all_time.quantize(Decimal("0.01")),
         "owner_total_this_month": owner_total_this_month,
-        "owner_total_all_time": owner_total_all_time,
+        "owner_total": owner_total_all_time,
         "company_total_this_month": company_total_this_month,
-        "company_total_all_time": company_total_all_time,
+        "company_total": company_total_all_time,
     }
 
     if unit_id is not None:
