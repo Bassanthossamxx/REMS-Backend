@@ -7,9 +7,9 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAdminUser
 from rest_framework.filters import SearchFilter
 
-from apps.tenants.models import Tenant
+from apps.tenants.models import Tenant, Review
 from apps.rents.models import Rent
-from .serializers import TenantListSerializer
+from .serializers import TenantListSerializer, TenantDetailSerializer, ReviewSerializer
 from apps.tenants.filters import TenantFilter
 
 
@@ -26,6 +26,11 @@ class TenantViewSet(ModelViewSet):
     search_fields = ["full_name", "rents__unit__name"]
     filterset_class = TenantFilter
     permission_classes = [IsAdminUser]
+
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return TenantDetailSerializer
+        return TenantListSerializer
 
     # Ensure tenant status is fresh on every GET
     def list(self, request, *args, **kwargs):
@@ -45,6 +50,8 @@ class TenantViewSet(ModelViewSet):
         return Response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
+        # Prefetch reviews for detail view
+        self.queryset = self.queryset.prefetch_related(Prefetch("reviews", queryset=Review.objects.order_by("-created_at", "-id")))
         instance = self.get_object()
         try:
             instance.update_status()
@@ -52,3 +59,26 @@ class TenantViewSet(ModelViewSet):
             pass
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+
+
+class ReviewViewSet(ModelViewSet):
+    queryset = Review.objects.select_related("tenant").all()
+    serializer_class = ReviewSerializer
+    permission_classes = [IsAdminUser]
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ["tenant"]
+    search_fields = ["tenant__full_name", "comment"]
+
+    def perform_create(self, serializer):
+        review = serializer.save()
+        # recalc is handled by model save, but keep explicit for clarity
+        review.tenant.recalc_rate()
+
+    def perform_update(self, serializer):
+        review = serializer.save()
+        review.tenant.recalc_rate()
+
+    def perform_destroy(self, instance):
+        tenant = instance.tenant
+        instance.delete()
+        tenant.recalc_rate()

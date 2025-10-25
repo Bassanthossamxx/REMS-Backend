@@ -1,13 +1,31 @@
 from rest_framework import serializers
 from django.utils import timezone
-from apps.tenants.models import Tenant
+from apps.tenants.models import Tenant, Review
 from apps.rents.models import Rent
 from apps.rents.serializers import RentSerializer
 
 
+class ReviewSerializer(serializers.ModelSerializer):
+    # Expose formatted date as yyyy-mm-dd
+    date = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Review
+        fields = [
+            "id",
+            "tenant",
+            "comment",
+            "rate",
+            "date",
+        ]
+        read_only_fields = ["id", "date"]
+
+    def get_date(self, obj):
+        return obj.created_at.date().isoformat()
+
+
 class TenantListSerializer(serializers.ModelSerializer):
     rent_info = serializers.SerializerMethodField()
-    rents = serializers.SerializerMethodField()
 
     class Meta:
         model = Tenant
@@ -18,9 +36,8 @@ class TenantListSerializer(serializers.ModelSerializer):
             "phone",
             "rate",
             "address",
-            "status",     # new field: tenant lifecycle status
+            "status",     # tenant lifecycle status
             "rent_info",  # nearest/current rent
-            "rents",      # full rent history for this tenant
         ]
 
     def get_rent_info(self, obj):
@@ -59,6 +76,17 @@ class TenantListSerializer(serializers.ModelSerializer):
         target = active or upcoming or latest_past
         return RentSerializer(target).data if target else None
 
+
+class TenantDetailSerializer(TenantListSerializer):
+    rents = serializers.SerializerMethodField()
+    reviews = serializers.SerializerMethodField()
+
+    class Meta(TenantListSerializer.Meta):
+        fields = TenantListSerializer.Meta.fields + [
+            "rents",      # full rent history for this tenant
+            "reviews",    # list of reviews
+        ]
+
     def get_rents(self, obj):
         """Return all rents for this tenant as a list of serialized dicts, newest first."""
         rents_qs = getattr(obj, "rents", None)
@@ -67,3 +95,19 @@ class TenantListSerializer(serializers.ModelSerializer):
         else:
             rents_qs = rents_qs.all()
         return RentSerializer(rents_qs, many=True).data
+
+    def get_reviews(self, obj):
+        reviews_qs = getattr(obj, "reviews", None)
+        if reviews_qs is None:
+            reviews_qs = obj.reviews.all()
+        else:
+            reviews_qs = reviews_qs.all()
+        # Return minimal shape per requirements
+        return [
+            {
+                "comment": r.comment,
+                "rate": float(r.rate) if r.rate is not None else None,
+                "date": r.created_at.date().isoformat(),
+            }
+            for r in reviews_qs
+        ]
