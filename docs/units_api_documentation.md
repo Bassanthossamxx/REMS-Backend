@@ -92,6 +92,7 @@ Common responses:
 | Extra            | response only        | `details { type, bedrooms, bathrooms, area }`                                                 |
 | Extra            | response only        | `payments_summary { total_occasional_payment, total_occasional_payment_last_month, last_month_payments[] }` |
 | Extra            | response only        | `unit_payment_summary { unit_id, unit_name, owner_id, owner_name, owner_percentage, total_this_month, total, total_occasional_this_month, total_occasional, total_after_occasional_this_month, total_after_occasional, company_total_this_month, company_total }` |
+| Extra            | response only        | `rent_payment_history[]` — list of `{ amount, date, status }` (date format `YYYY-MM-DD`, most recent first) |
 
 ---
 
@@ -201,7 +202,11 @@ Common responses:
     "total_after_occasional": "98000.00",
     "company_total_this_month": "3600.00",
     "company_total": "39200.00"
-  }
+  },
+  "rent_payment_history": [
+    { "amount": "1200.00", "date": "2025-09-30", "status": "paid" },
+    { "amount": "800.00", "date": "2025-08-31", "status": "pending" }
+  ]
 }
 ```
 
@@ -270,6 +275,7 @@ If images provided → replaces all.
 * `unit_payment_summary` provides embedded analytics for the unit (rent totals, deductions, owner/company shares). The same analytics are also available via the standalone endpoint `GET /api/all/payments/unit/{unit_id}/`.
 * Use filters for `from_date` and `to_date` to find available units in a range.
 * List endpoint is compact; retrieve gives full details.
+* `rent_payment_history` lists all rents for the unit with `{ amount, date, status }`, sorted most recent first by `payment_date`; `date` uses the `YYYY-MM-DD` format.
 
 ---
 

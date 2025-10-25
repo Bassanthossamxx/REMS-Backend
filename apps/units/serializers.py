@@ -103,6 +103,33 @@ class UnitSerializer(serializers.ModelSerializer):
         # Embed full unit payment analytics (rent + deductions + shares) by calling the existing util
         representation["unit_payment_summary"] = pay_utils.calculate_unit_payment_summary(instance.id)
 
+        # New: include rent payment history for this unit
+        try:
+            rents_qs = instance.rents.all().only(
+                "total_amount", "payment_date", "payment_status", "id"
+            ).order_by("-payment_date", "-id")
+            history = []
+            for r in rents_qs:
+                # format amount with 2 decimals; date as ISO string
+                amount_str = f"{r.total_amount:.2f}" if r.total_amount is not None else "0.00"
+                # format date as yyyy-mm-dd (date-only)
+                if getattr(r, "payment_date", None):
+                    try:
+                        date_val = r.payment_date.date().isoformat()
+                    except Exception:
+                        date_val = r.payment_date.strftime("%Y-%m-%d")
+                else:
+                    date_val = None
+                status_val = getattr(r, "payment_status", None)
+                history.append({
+                    "amount": amount_str,
+                    "date": date_val,
+                    "status": status_val,
+                })
+            representation["rent_payment_history"] = history
+        except Exception:
+            representation["rent_payment_history"] = []
+
         return representation
 
 
