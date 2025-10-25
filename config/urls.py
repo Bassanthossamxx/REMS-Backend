@@ -11,6 +11,7 @@ from drf_spectacular.views import (
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("apps.core.urls")),
+    path("dashboard/", include("apps.dashboard.urls")),  # Include
     path("api/", include("apps.tenants.urls")),
     path("api/", include("apps.units.urls")),  # Include units app URLs
     path("api/", include("apps.owners.urls")),  # Include owners app URLs
