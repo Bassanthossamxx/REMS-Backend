@@ -2,6 +2,8 @@ from rest_framework import serializers
 from rest_framework.serializers import ImageField
 from apps.units.models import Unit, UnitImage
 from apps.owners.models import Owner
+from apps.payments import utils as pay_utils
+from apps.payments.serializers import OccasionalPaymentSimpleSerializer
 
 
 class UnitListSerializer(serializers.ModelSerializer):
@@ -80,6 +82,24 @@ class UnitSerializer(serializers.ModelSerializer):
         representation["images"] = [
             image.image.url for image in instance.images.all()
         ]
+
+        # Add payments summary via utils (no business logic here)
+        try:
+            summary = pay_utils.unit_payments_summary(instance.id)
+            representation["payments_summary"] = {
+                "total_occasional_payment": f"{summary['total_occasional_payment']:.2f}",
+                "total_occasional_payment_last_month": f"{summary['total_occasional_payment_last_month']:.2f}",
+                "last_month_payments": OccasionalPaymentSimpleSerializer(
+                    summary["last_month_qs"], many=True
+                ).data,
+            }
+        except Exception:
+            representation["payments_summary"] = {
+                "total_occasional_payment": "0.00",
+                "total_occasional_payment_last_month": "0.00",
+                "last_month_payments": [],
+            }
+
         return representation
 
 

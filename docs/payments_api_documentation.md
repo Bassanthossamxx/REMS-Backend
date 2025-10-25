@@ -38,7 +38,6 @@ This is a complete, self-contained guide for integrating the payments (occasiona
 | maintenance  | Maintenance |
 | repair       | Repair      |
 | other        | Other       |
-
 ---
 
 ## Resource schema: OccasionalPayment
@@ -72,7 +71,8 @@ List response wrapper shape:
   "count": 2,
   "next": null,
   "previous": null,
-  "results": [ /* OccasionalPayment[] */ ]
+  "results": [],
+  "totals": {}
 }
 ```
 
@@ -96,6 +96,9 @@ List response wrapper shape:
 ### 1) List unit payments
 - Method and path: `GET /payments/{unit_id}/`
 - Returns paginated occasional payments for a unit (ordered by `id` ASC).
+- Each item includes summary fields for the unit (calculated in serializer):
+  - `total_occasional_payment`: sum of all payments for this unit (string)
+  - `total_occasional_payment_last_month`: sum within the previous calendar month (string)
 
 Path params
 
@@ -126,7 +129,9 @@ Response 200 example
       "payment_date": "2025-10-24",
       "notes": "October bill",
       "created_at": "2025-10-24T10:20:30.000000Z",
-      "updated_at": "2025-10-24T10:20:30.000000Z"
+      "updated_at": "2025-10-24T10:20:30.000000Z",
+      "total_occasional_payment": "195.50",
+      "total_occasional_payment_last_month": "0.00"
     },
     {
       "id": 2,
@@ -137,11 +142,17 @@ Response 200 example
       "payment_date": "2025-10-20",
       "notes": null,
       "created_at": "2025-10-24T10:21:10.000000Z",
-      "updated_at": "2025-10-24T10:21:10.000000Z"
+      "updated_at": "2025-10-24T10:21:10.000000Z",
+      "total_occasional_payment": "195.50",
+      "total_occasional_payment_last_month": "0.00"
     }
   ]
 }
 ```
+
+Notes
+- "Last month" means the previous calendar month (e.g., if today is 2025-10-25, last month is 2025-09-01..2025-09-30).
+- Summary fields are emitted per-item but are identical within a given response page as they are unit-level summaries.
 
 Errors
 
@@ -348,3 +359,5 @@ Errors: 401, 403, 404
 - Timestamps are ISO8601 UTC. Parse on the frontend as needed.
 - `unit` is read-only via the API surface and inferred from the path.
 - OpenAPI schema is also available at `/api/schema/`, but this guide is sufficient for payments integration.
+---
+#### **all rights back to bassanthossamxx**

@@ -308,5 +308,5 @@ Response:
 - Use `lower_quantity` to trigger `Low Stock` when quantity is at or below the threshold.
 - Search is partial and case-insensitive across `name`, `category`, `supplier_name`, `status`.
 - Ordering by fields is not enabled on this endpoint.
-
----
+___
+#### **all rights back to bassanthossamxx**

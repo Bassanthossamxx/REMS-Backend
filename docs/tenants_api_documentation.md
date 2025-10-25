@@ -156,3 +156,5 @@ Delete a tenant by their ID.
 - Ensure proper authentication headers are included in the requests.
 - Use the `status` query parameters in the list endpoint to filter results effectively.
 - The `search` parameter searches both tenant full name and related unit name (configured in the view as `search_fields = ["full_name", "rents__unit__name"]`).
+---
+#### **all rights back to bassanthossamxx**

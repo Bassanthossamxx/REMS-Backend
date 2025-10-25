@@ -89,6 +89,7 @@ Common responses:
 | owner_percentage | decimal        | 0..100 (default 0)                                 |
 | images           | array of files | write-only, optional (replaces existing on update) |
 | Extra            | response only  | `details { type, bedrooms, bathrooms, area }`      |
+| Extra            | response only  | `payments_summary { total_occasional_payment, total_occasional_payment_last_month, last_month_payments[] }` |
 
 ---
 
@@ -162,7 +163,24 @@ Common responses:
   "area": 90,
   "price_per_day": "120.00",
   "owner_percentage": "30.00",
-  "details": { "type": "apartment", "bedrooms": 2, "bathrooms": 1, "area": 90 }
+  "details": { "type": "apartment", "bedrooms": 2, "bathrooms": 1, "area": 90 },
+  "payments_summary": {
+    "total_occasional_payment": "275.50",
+    "total_occasional_payment_last_month": "95.50",
+    "last_month_payments": [
+      {
+        "id": 11,
+        "unit": 12,
+        "category": "maintenance",
+        "amount": "95.50",
+        "payment_method": "cash",
+        "payment_date": "2025-09-14",
+        "notes": null,
+        "created_at": "2025-09-14T08:00:00Z",
+        "updated_at": "2025-09-14T08:00:00Z"
+      }
+    ]
+  }
 }
 ```
 
@@ -397,4 +415,4 @@ DELETE `/api/districts/{id}/`
 → `204 No Content`
 
 ---
-
+#### **all rights back to bassanthossamxx**

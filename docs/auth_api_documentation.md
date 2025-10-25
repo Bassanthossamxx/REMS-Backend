@@ -174,6 +174,4 @@ python manage.py runserver
 
 ---
 
-
-
 #### **all rights back to bassanthossamxx**
