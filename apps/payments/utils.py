@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import date, timedelta, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Dict, Any
+from typing import Any, Dict
 
-from django.db.models import Sum, QuerySet
+from django.db.models import QuerySet, Sum
 from django.utils import timezone
 
 from apps.owners.models import Owner
@@ -78,63 +78,27 @@ def calculate_owner_payment_summary(owner_id: int) -> dict:
     unit_ids = list(units_qs.values_list("id", flat=True))
 
     # Totals before (rent) and occasional
-    total_before_all_time = (
-        Rent.objects.filter(unit_id__in=unit_ids).aggregate(total=Sum("total_amount")).get("total")
-        or Decimal("0.00")
-    )
-    total_before_this_month = (
-        Rent.objects.filter(unit_id__in=unit_ids, payment_date__gte=start_dt).aggregate(total=Sum("total_amount")).get("total")
-        or Decimal("0.00")
-    )
+    total_before_all_time = Rent.objects.filter(unit_id__in=unit_ids).aggregate(total=Sum("total_amount")).get("total") or Decimal("0.00")
+    total_before_this_month = Rent.objects.filter(unit_id__in=unit_ids, payment_date__gte=start_dt).aggregate(total=Sum("total_amount")).get("total") or Decimal("0.00")
 
-    total_occasional_all_time = (
-        OccasionalPayments.objects.filter(unit_id__in=unit_ids).aggregate(total=Sum("amount")).get("total")
-        or Decimal("0.00")
-    )
-    total_occasional_this_month = (
-        OccasionalPayments.objects.filter(unit_id__in=unit_ids, payment_date__gte=start_d).aggregate(total=Sum("amount")).get("total")
-        or Decimal("0.00")
-    )
+    total_occasional_all_time = OccasionalPayments.objects.filter(unit_id__in=unit_ids).aggregate(total=Sum("amount")).get("total") or Decimal("0.00")
+    total_occasional_this_month = OccasionalPayments.objects.filter(unit_id__in=unit_ids, payment_date__gte=start_d).aggregate(total=Sum("amount")).get("total") or Decimal("0.00")
 
     total_after_all_time = total_before_all_time - total_occasional_all_time
     total_after_this_month = total_before_this_month - total_occasional_this_month
 
     # Per-unit grouped aggregates (all-time and this month) for detailed breakdown
-    rents_by_unit_all = {
-        uid: amt or Decimal("0.00")
-        for uid, amt in (
-            Rent.objects.filter(unit_id__in=unit_ids)
-            .values_list("unit_id")
-            .annotate(s=Sum("total_amount"))
-            .values_list("unit_id", "s")
-        )
-    }
+    rents_by_unit_all = {uid: amt or Decimal("0.00") for uid, amt in (Rent.objects.filter(unit_id__in=unit_ids).values_list("unit_id").annotate(s=Sum("total_amount")).values_list("unit_id", "s"))}
     rents_by_unit_month = {
         uid: amt or Decimal("0.00")
-        for uid, amt in (
-            Rent.objects.filter(unit_id__in=unit_ids, payment_date__gte=start_dt)
-            .values_list("unit_id")
-            .annotate(s=Sum("total_amount"))
-            .values_list("unit_id", "s")
-        )
+        for uid, amt in (Rent.objects.filter(unit_id__in=unit_ids, payment_date__gte=start_dt).values_list("unit_id").annotate(s=Sum("total_amount")).values_list("unit_id", "s"))
     }
     occ_by_unit_all = {
-        uid: amt or Decimal("0.00")
-        for uid, amt in (
-            OccasionalPayments.objects.filter(unit_id__in=unit_ids)
-            .values_list("unit_id")
-            .annotate(s=Sum("amount"))
-            .values_list("unit_id", "s")
-        )
+        uid: amt or Decimal("0.00") for uid, amt in (OccasionalPayments.objects.filter(unit_id__in=unit_ids).values_list("unit_id").annotate(s=Sum("amount")).values_list("unit_id", "s"))
     }
     occ_by_unit_month = {
         uid: amt or Decimal("0.00")
-        for uid, amt in (
-            OccasionalPayments.objects.filter(unit_id__in=unit_ids, payment_date__gte=start_d)
-            .values_list("unit_id")
-            .annotate(s=Sum("amount"))
-            .values_list("unit_id", "s")
-        )
+        for uid, amt in (OccasionalPayments.objects.filter(unit_id__in=unit_ids, payment_date__gte=start_d).values_list("unit_id").annotate(s=Sum("amount")).values_list("unit_id", "s"))
     }
 
     unit_rows = []
@@ -152,30 +116,29 @@ def calculate_owner_payment_summary(owner_id: int) -> dict:
         o_all = (after_all * frac).quantize(TWO_PLACES)
         o_m = (after_m * frac).quantize(TWO_PLACES)
 
-        unit_rows.append({
-            "unit_id": u.id,
-            "unit_name": u.name,
-            "owner_percentage": frac.quantize(FOUR_PLACES),
-            "total": before_all.quantize(TWO_PLACES),
-            "total_this_month": before_m.quantize(TWO_PLACES),
-            "total_occasional": occ_all.quantize(TWO_PLACES),
-            "total_occasional_this_month": occ_m.quantize(TWO_PLACES),
-            "total_after_occasional": after_all.quantize(TWO_PLACES),
-            "total_after_occasional_this_month": after_m.quantize(TWO_PLACES),
-            "owner_total": o_all,
-            "owner_total_this_month": o_m,
-        })
+        unit_rows.append(
+            {
+                "unit_id": u.id,
+                "unit_name": u.name,
+                "owner_percentage": frac.quantize(FOUR_PLACES),
+                "total": before_all.quantize(TWO_PLACES),
+                "total_this_month": before_m.quantize(TWO_PLACES),
+                "total_occasional": occ_all.quantize(TWO_PLACES),
+                "total_occasional_this_month": occ_m.quantize(TWO_PLACES),
+                "total_after_occasional": after_all.quantize(TWO_PLACES),
+                "total_after_occasional_this_month": after_m.quantize(TWO_PLACES),
+                "owner_total": o_all,
+                "owner_total_this_month": o_m,
+            }
+        )
         owner_total_all_time += o_all
         owner_total_this_month += o_m
 
-    paid_to_owner_total = (
-        OwnerPayment.objects.filter(owner=owner).aggregate(total=Sum("amount")).get("total")
-        or Decimal("0.00")
-    )
+    paid_to_owner_total = OwnerPayment.objects.filter(owner=owner).aggregate(total=Sum("amount")).get("total") or Decimal("0.00")
     still_need_to_pay = (owner_total_all_time - paid_to_owner_total).quantize(TWO_PLACES)
 
-    company_total_all_time = (total_after_all_time - owner_total_all_time).quantize(TWO_PLACES)
-    company_total_this_month = (total_after_this_month - owner_total_this_month).quantize(TWO_PLACES)
+    (total_after_all_time - owner_total_all_time).quantize(TWO_PLACES)
+    (total_after_this_month - owner_total_this_month).quantize(TWO_PLACES)
 
     return {
         "owner_id": owner.id,
@@ -206,23 +169,11 @@ def calculate_unit_payment_summary(unit_id: int) -> dict:
     start_dt = start_of_current_month_datetime()
     start_d = start_of_current_month_date()
 
-    total_before_all_time = (
-        Rent.objects.filter(unit=unit).aggregate(total=Sum("total_amount")).get("total")
-        or Decimal("0.00")
-    )
-    total_before_this_month = (
-        Rent.objects.filter(unit=unit, payment_date__gte=start_dt).aggregate(total=Sum("total_amount")).get("total")
-        or Decimal("0.00")
-    )
+    total_before_all_time = Rent.objects.filter(unit=unit).aggregate(total=Sum("total_amount")).get("total") or Decimal("0.00")
+    total_before_this_month = Rent.objects.filter(unit=unit, payment_date__gte=start_dt).aggregate(total=Sum("total_amount")).get("total") or Decimal("0.00")
 
-    total_occasional_all_time = (
-        OccasionalPayments.objects.filter(unit=unit).aggregate(total=Sum("amount")).get("total")
-        or Decimal("0.00")
-    )
-    total_occasional_this_month = (
-        OccasionalPayments.objects.filter(unit=unit, payment_date__gte=start_d).aggregate(total=Sum("amount")).get("total")
-        or Decimal("0.00")
-    )
+    total_occasional_all_time = OccasionalPayments.objects.filter(unit=unit).aggregate(total=Sum("amount")).get("total") or Decimal("0.00")
+    total_occasional_this_month = OccasionalPayments.objects.filter(unit=unit, payment_date__gte=start_d).aggregate(total=Sum("amount")).get("total") or Decimal("0.00")
 
     total_after_all_time = total_before_all_time - total_occasional_all_time
     total_after_this_month = total_before_this_month - total_occasional_this_month
@@ -268,52 +219,28 @@ def calculate_company_payment_summary(unit_id: int | None = None) -> dict:
         units_qs = units_qs.filter(pk=unit_id)
     unit_ids = list(units_qs.values_list("id", flat=True))
 
-    total_before_all_time = (
-        Rent.objects.filter(unit_id__in=unit_ids).aggregate(total=Sum("total_amount")).get("total")
-        or Decimal("0.00")
-    )
-    total_before_this_month = (
-        Rent.objects.filter(unit_id__in=unit_ids, payment_date__gte=start_dt).aggregate(total=Sum("total_amount")).get("total")
-        or Decimal("0.00")
-    )
+    total_before_all_time = Rent.objects.filter(unit_id__in=unit_ids).aggregate(total=Sum("total_amount")).get("total") or Decimal("0.00")
+    total_before_this_month = Rent.objects.filter(unit_id__in=unit_ids, payment_date__gte=start_dt).aggregate(total=Sum("total_amount")).get("total") or Decimal("0.00")
 
-    total_occasional_all_time = (
-        OccasionalPayments.objects.filter(unit_id__in=unit_ids).aggregate(total=Sum("amount")).get("total")
-        or Decimal("0.00")
-    )
-    total_occasional_this_month = (
-        OccasionalPayments.objects.filter(unit_id__in=unit_ids, payment_date__gte=start_d).aggregate(total=Sum("amount")).get("total")
-        or Decimal("0.00")
-    )
+    total_occasional_all_time = OccasionalPayments.objects.filter(unit_id__in=unit_ids).aggregate(total=Sum("amount")).get("total") or Decimal("0.00")
+    total_occasional_this_month = OccasionalPayments.objects.filter(unit_id__in=unit_ids, payment_date__gte=start_d).aggregate(total=Sum("amount")).get("total") or Decimal("0.00")
 
     total_after_all_time = total_before_all_time - total_occasional_all_time
     total_after_this_month = total_before_this_month - total_occasional_this_month
 
     # Compute owner totals by unit, then company = total_after - owner_total
     perc_map = {u.id: (u.owner_percentage or Decimal("0")) for u in units_qs}
-    rents_by_unit_all = {
-        uid: amt or Decimal("0.00")
-        for uid, amt in (
-            Rent.objects.filter(unit_id__in=unit_ids).values_list("unit_id").annotate(s=Sum("total_amount")).values_list("unit_id", "s")
-        )
-    }
+    rents_by_unit_all = {uid: amt or Decimal("0.00") for uid, amt in (Rent.objects.filter(unit_id__in=unit_ids).values_list("unit_id").annotate(s=Sum("total_amount")).values_list("unit_id", "s"))}
     occ_by_unit_all = {
-        uid: amt or Decimal("0.00")
-        for uid, amt in (
-            OccasionalPayments.objects.filter(unit_id__in=unit_ids).values_list("unit_id").annotate(s=Sum("amount")).values_list("unit_id", "s")
-        )
+        uid: amt or Decimal("0.00") for uid, amt in (OccasionalPayments.objects.filter(unit_id__in=unit_ids).values_list("unit_id").annotate(s=Sum("amount")).values_list("unit_id", "s"))
     }
     rents_by_unit_month = {
         uid: amt or Decimal("0.00")
-        for uid, amt in (
-            Rent.objects.filter(unit_id__in=unit_ids, payment_date__gte=start_dt).values_list("unit_id").annotate(s=Sum("total_amount")).values_list("unit_id", "s")
-        )
+        for uid, amt in (Rent.objects.filter(unit_id__in=unit_ids, payment_date__gte=start_dt).values_list("unit_id").annotate(s=Sum("total_amount")).values_list("unit_id", "s"))
     }
     occ_by_unit_month = {
         uid: amt or Decimal("0.00")
-        for uid, amt in (
-            OccasionalPayments.objects.filter(unit_id__in=unit_ids, payment_date__gte=start_d).values_list("unit_id").annotate(s=Sum("amount")).values_list("unit_id", "s")
-        )
+        for uid, amt in (OccasionalPayments.objects.filter(unit_id__in=unit_ids, payment_date__gte=start_d).values_list("unit_id").annotate(s=Sum("amount")).values_list("unit_id", "s"))
     }
 
     owner_total_all_time = Decimal("0.00")
@@ -322,14 +249,14 @@ def calculate_company_payment_summary(unit_id: int | None = None) -> dict:
     for uid, before_all in rents_by_unit_all.items():
         occ_all = occ_by_unit_all.get(uid, Decimal("0.00"))
         after_all = before_all - occ_all
-        frac = (Decimal(perc_map.get(uid, Decimal("0"))) / Decimal("100"))
-        owner_total_all_time += (after_all * frac)
+        frac = Decimal(perc_map.get(uid, Decimal("0"))) / Decimal("100")
+        owner_total_all_time += after_all * frac
 
     for uid, before_m in rents_by_unit_month.items():
         occ_m = occ_by_unit_month.get(uid, Decimal("0.00"))
         after_m = before_m - occ_m
-        frac = (Decimal(perc_map.get(uid, Decimal("0"))) / Decimal("100"))
-        owner_total_this_month += (after_m * frac)
+        frac = Decimal(perc_map.get(uid, Decimal("0"))) / Decimal("100")
+        owner_total_this_month += after_m * frac
 
     owner_total_all_time = owner_total_all_time.quantize(TWO_PLACES)
     owner_total_this_month = owner_total_this_month.quantize(TWO_PLACES)

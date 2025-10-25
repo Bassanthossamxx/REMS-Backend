@@ -1,9 +1,10 @@
 from rest_framework import serializers
 from rest_framework.serializers import ImageField
-from apps.units.models import Unit, UnitImage
+
 from apps.owners.models import Owner
 from apps.payments import utils as pay_utils
 from apps.payments.serializers import OccasionalPaymentSimpleSerializer
+from apps.units.models import Unit, UnitImage
 
 
 class UnitListSerializer(serializers.ModelSerializer):
@@ -34,11 +35,7 @@ class UnitListSerializer(serializers.ModelSerializer):
 
 
 class UnitSerializer(serializers.ModelSerializer):
-    images = serializers.ListField(
-        child=serializers.ImageField(),
-        write_only=True,
-        required=False
-    )
+    images = serializers.ListField(child=serializers.ImageField(), write_only=True, required=False)
     owner = serializers.PrimaryKeyRelatedField(queryset=Owner.objects.all())
     bedrooms = serializers.IntegerField(required=True)
     bathrooms = serializers.IntegerField(required=True)
@@ -79,9 +76,7 @@ class UnitSerializer(serializers.ModelSerializer):
             "area": instance.area,
         }
         # Include related images
-        representation["images"] = [
-            image.image.url for image in instance.images.all()
-        ]
+        representation["images"] = [image.image.url for image in instance.images.all()]
 
         # Add payments summary via utils (occasional payments quick summary)
         try:
@@ -89,9 +84,7 @@ class UnitSerializer(serializers.ModelSerializer):
             representation["payments_summary"] = {
                 "total_occasional_payment": f"{summary['total_occasional_payment']:.2f}",
                 "total_occasional_payment_last_month": f"{summary['total_occasional_payment_last_month']:.2f}",
-                "last_month_payments": OccasionalPaymentSimpleSerializer(
-                    summary["last_month_qs"], many=True
-                ).data,
+                "last_month_payments": OccasionalPaymentSimpleSerializer(summary["last_month_qs"], many=True).data,
             }
         except Exception:
             representation["payments_summary"] = {
@@ -105,9 +98,7 @@ class UnitSerializer(serializers.ModelSerializer):
 
         # New: include rent payment history for this unit
         try:
-            rents_qs = instance.rents.all().only(
-                "total_amount", "payment_date", "payment_status", "id"
-            ).order_by("-payment_date", "-id")
+            rents_qs = instance.rents.all().only("total_amount", "payment_date", "payment_status", "id").order_by("-payment_date", "-id")
             history = []
             for r in rents_qs:
                 # format amount with 2 decimals; date as ISO string
@@ -121,11 +112,13 @@ class UnitSerializer(serializers.ModelSerializer):
                 else:
                     date_val = None
                 status_val = getattr(r, "payment_status", None)
-                history.append({
-                    "amount": amount_str,
-                    "date": date_val,
-                    "status": status_val,
-                })
+                history.append(
+                    {
+                        "amount": amount_str,
+                        "date": date_val,
+                        "status": status_val,
+                    }
+                )
             representation["rent_payment_history"] = history
         except Exception:
             representation["rent_payment_history"] = []

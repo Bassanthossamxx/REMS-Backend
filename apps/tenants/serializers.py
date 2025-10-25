@@ -1,8 +1,9 @@
-from rest_framework import serializers
 from django.utils import timezone
-from apps.tenants.models import Tenant, Review
+from rest_framework import serializers
+
 from apps.rents.models import Rent
 from apps.rents.serializers import RentSerializer
+from apps.tenants.models import Review, Tenant
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -36,7 +37,7 @@ class TenantListSerializer(serializers.ModelSerializer):
             "phone",
             "rate",
             "address",
-            "status",     # tenant lifecycle status
+            "status",  # tenant lifecycle status
             "rent_info",  # nearest/current rent
         ]
 
@@ -83,8 +84,8 @@ class TenantDetailSerializer(TenantListSerializer):
 
     class Meta(TenantListSerializer.Meta):
         fields = TenantListSerializer.Meta.fields + [
-            "rents",      # full rent history for this tenant
-            "reviews",    # list of reviews
+            "rents",  # full rent history for this tenant
+            "reviews",  # list of reviews
         ]
 
     def get_rents(self, obj):

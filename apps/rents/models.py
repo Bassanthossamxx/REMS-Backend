@@ -1,7 +1,8 @@
 from django.db import models
-from decimal import Decimal
 from django.utils import timezone
-from config.choices import PaymentStatus, PaymentMethod, RentStatus
+
+from config.choices import PaymentMethod, PaymentStatus, RentStatus
+
 
 class Rent(models.Model):
     # Backward compatible: allow referencing choice enums as Rent.PaymentStatus
@@ -67,6 +68,7 @@ class Rent(models.Model):
 
         # Update or create owner revenue using the unit's owner
         from apps.owners.models import OwnerRevenue
+
         revenue, _ = OwnerRevenue.objects.get_or_create(owner=self.unit.owner)
         revenue.update_totals()
 
@@ -89,6 +91,7 @@ class Rent(models.Model):
         unit.update_status()
         unit.update_financials()
         from apps.owners.models import OwnerRevenue
+
         revenue, _ = OwnerRevenue.objects.get_or_create(owner=owner)
         revenue.update_totals()
         # Refresh tenant status after rent removal

@@ -1,6 +1,7 @@
-from django.db import models
 from decimal import Decimal
-from django.core.validators import MinValueValidator, MaxValueValidator
+
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
 
 
 class Owner(models.Model):
@@ -12,7 +13,10 @@ class Owner(models.Model):
         max_digits=3,
         decimal_places=1,
         default=5.0,
-        validators=[MinValueValidator(Decimal("1.0")), MaxValueValidator(Decimal("5.0"))],
+        validators=[
+            MinValueValidator(Decimal("1.0")),
+            MaxValueValidator(Decimal("5.0")),
+        ],
     )
     date_joined = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

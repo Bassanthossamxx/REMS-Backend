@@ -59,7 +59,7 @@ class District(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('name', 'city')
+        unique_together = ("name", "city")
         verbose_name_plural = "Districts"
 
     def __str__(self):

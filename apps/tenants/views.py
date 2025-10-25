@@ -1,16 +1,15 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from django.db.models import Q, Prefetch
-from django.utils import timezone
+from django.db.models import Prefetch
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.viewsets import ModelViewSet
-from rest_framework.permissions import IsAdminUser
 from rest_framework.filters import SearchFilter
+from rest_framework.permissions import IsAdminUser
+from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet
 
-from apps.tenants.models import Tenant, Review
 from apps.rents.models import Rent
-from .serializers import TenantListSerializer, TenantDetailSerializer, ReviewSerializer
 from apps.tenants.filters import TenantFilter
+from apps.tenants.models import Review, Tenant
+
+from .serializers import ReviewSerializer, TenantDetailSerializer, TenantListSerializer
 
 
 class TenantViewSet(ModelViewSet):

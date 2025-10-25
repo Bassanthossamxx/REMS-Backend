@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from django.utils import timezone
+
 from apps.rents.models import Rent
-from config.choices import Status
+
 
 class RentSerializer(serializers.ModelSerializer):
     # Read-only, computed fields
@@ -16,12 +16,25 @@ class RentSerializer(serializers.ModelSerializer):
         model = Rent
         fields = [
             # model fields
-            "id", "unit", "tenant", "rent_start", "rent_end", "total_amount",
-            "payment_status", "payment_method", "payment_date", "status",
-            "notes", "attachment", "created_at",
+            "id",
+            "unit",
+            "tenant",
+            "rent_start",
+            "rent_end",
+            "total_amount",
+            "payment_status",
+            "payment_method",
+            "payment_date",
+            "status",
+            "notes",
+            "attachment",
+            "created_at",
             # computed fields
-            "unit_name", "unit_type",
-            "tenant_name", "tenant_email", "tenant_phone",
+            "unit_name",
+            "unit_type",
+            "tenant_name",
+            "tenant_email",
+            "tenant_phone",
             "duration",
         ]
         extra_kwargs = {
@@ -45,9 +58,11 @@ class RentSerializer(serializers.ModelSerializer):
 
         # Basic date order check
         if rent_start and rent_end and rent_end < rent_start:
-            raise serializers.ValidationError({
-                "rent_end": "Rent end date cannot be earlier than rent start date.",
-            })
+            raise serializers.ValidationError(
+                {
+                    "rent_end": "Rent end date cannot be earlier than rent start date.",
+                }
+            )
 
         # Determine if overlap-sensitive fields changed on update
         overlap_fields = ("unit", "tenant", "rent_start", "rent_end")
@@ -70,15 +85,19 @@ class RentSerializer(serializers.ModelSerializer):
 
             # 1) Unit can't have two rents that overlap
             if qs.filter(unit=unit, rent_start__lte=rent_end, rent_end__gte=rent_start).exists():
-                raise serializers.ValidationError({
-                    "unit": "This unit already has a rent overlapping with the selected dates.",
-                })
+                raise serializers.ValidationError(
+                    {
+                        "unit": "This unit already has a rent overlapping with the selected dates.",
+                    }
+                )
 
             # 2) Tenant can't rent more than one unit at the same time
             if qs.filter(tenant=tenant, rent_start__lte=rent_end, rent_end__gte=rent_start).exists():
-                raise serializers.ValidationError({
-                    "tenant": "This tenant already has another rent overlapping with the selected dates.",
-                })
+                raise serializers.ValidationError(
+                    {
+                        "tenant": "This tenant already has another rent overlapping with the selected dates.",
+                    }
+                )
 
         return attrs
 

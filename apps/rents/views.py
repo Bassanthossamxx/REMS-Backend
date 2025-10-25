@@ -1,9 +1,10 @@
-from django.shortcuts import render
 from rest_framework import viewsets
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
+
 from apps.rents.models import Rent
 from apps.rents.serializers import RentSerializer
+
 
 # Admin-only CRUD for rents
 class RentViewSet(viewsets.ModelViewSet):

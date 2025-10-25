@@ -1,13 +1,13 @@
-from rest_framework.viewsets import ModelViewSet
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import status
+from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
-from rest_framework import status
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import OrderingFilter
+from rest_framework.viewsets import ModelViewSet
 
-from apps.units.models import Unit
-from apps.units.serializers import UnitSerializer, UnitListSerializer
 from apps.units.filters import UnitFilter
+from apps.units.models import Unit
+from apps.units.serializers import UnitListSerializer, UnitSerializer
 
 
 class UnitViewSet(ModelViewSet):
@@ -17,6 +17,7 @@ class UnitViewSet(ModelViewSet):
     - Auto updates status on read and write
     - Filterable by multiple fields including lease dates
     """
+
     queryset = Unit.objects.select_related("city", "district", "owner").all()
     serializer_class = UnitSerializer
     permission_classes = [IsAdminUser]

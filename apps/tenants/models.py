@@ -1,7 +1,8 @@
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.utils import timezone
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models import Avg
+from django.utils import timezone
+
 from config.choices import TenantStatus
 
 
@@ -56,7 +57,11 @@ class Review(models.Model):
     tenant = models.ForeignKey(Tenant, related_name="reviews", on_delete=models.CASCADE)
     comment = models.TextField(blank=True)
     # allow fractional ratings like 4.5
-    rate = models.DecimalField(max_digits=2, decimal_places=1, validators=[MinValueValidator(1), MaxValueValidator(5)])
+    rate = models.DecimalField(
+        max_digits=2,
+        decimal_places=1,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

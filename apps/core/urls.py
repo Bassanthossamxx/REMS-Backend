@@ -1,11 +1,12 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
-from .views import SuperUserLoginView, LogoutView, CityViewSet, DistrictViewSet
+
+from .views import CityViewSet, DistrictViewSet, LogoutView, SuperUserLoginView
 
 router = DefaultRouter()
-router.register(r'cities', CityViewSet, basename='city')
-router.register(r'districts', DistrictViewSet, basename='district')
+router.register(r"cities", CityViewSet, basename="city")
+router.register(r"districts", DistrictViewSet, basename="district")
 
 urlpatterns = [
     path("auth/login/", SuperUserLoginView.as_view(), name="superuser-login"),

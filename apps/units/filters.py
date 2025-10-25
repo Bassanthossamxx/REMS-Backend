@@ -1,6 +1,6 @@
-from django_filters import rest_framework as filters
 from django.utils.dateparse import parse_date
-from django.db.models import Q
+from django_filters import rest_framework as filters
+
 from apps.units.models import Unit
 
 
@@ -12,14 +12,15 @@ class UnitFilter(filters.FilterSet):
     - Filtering by rent date window (from_date/to_date)
     - Filtering by owner lease_start and lease_end (lease_from / lease_to)
     """
-    from_date = filters.CharFilter(method='filter_from_date', label='From Date')
-    to_date = filters.CharFilter(method='filter_to_date', label='To Date')
-    lease_from = filters.DateFilter(field_name='lease_start', lookup_expr='gte')
-    lease_to = filters.DateFilter(field_name='lease_end', lookup_expr='lte')
+
+    from_date = filters.CharFilter(method="filter_from_date", label="From Date")
+    to_date = filters.CharFilter(method="filter_to_date", label="To Date")
+    lease_from = filters.DateFilter(field_name="lease_start", lookup_expr="gte")
+    lease_to = filters.DateFilter(field_name="lease_end", lookup_expr="lte")
 
     class Meta:
         model = Unit
-        fields = ['type', 'city', 'district', 'status', 'lease_from', 'lease_to']
+        fields = ["type", "city", "district", "status", "lease_from", "lease_to"]
 
     def filter_from_date(self, queryset, name, value):
         """
@@ -33,7 +34,7 @@ class UnitFilter(filters.FilterSet):
         # Include units with no rent or with rents ending before that date
         return queryset.exclude(
             rents__rent_end__gte=from_date_parsed,
-            rents__rent_start__lte=from_date_parsed
+            rents__rent_start__lte=from_date_parsed,
         ).distinct()
 
     def filter_to_date(self, queryset, name, value):
@@ -44,7 +45,4 @@ class UnitFilter(filters.FilterSet):
         if not to_date_parsed:
             return queryset
 
-        return queryset.exclude(
-            rents__rent_start__lte=to_date_parsed,
-            rents__rent_end__gte=to_date_parsed
-        ).distinct()
+        return queryset.exclude(rents__rent_start__lte=to_date_parsed, rents__rent_end__gte=to_date_parsed).distinct()

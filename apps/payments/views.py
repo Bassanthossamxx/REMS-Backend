@@ -1,12 +1,10 @@
-from django.shortcuts import render, get_object_or_404
-from rest_framework import generics, views, status
+from django.shortcuts import get_object_or_404
+from rest_framework import generics, views
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
-from django.utils import timezone
-from datetime import date, datetime
-from decimal import Decimal
-from django.db.models import Sum, F
 
+from apps.owners.models import Owner
+from apps.payments import utils as pay_utils
 from apps.payments.models import OccasionalPayments, OwnerPayment
 from apps.payments.serializers import (
     OccasionalPaymentSerializer,
@@ -14,13 +12,8 @@ from apps.payments.serializers import (
     OwnerPaymentCreateSerializer,
     OwnerPaymentSummarySerializer,
     UnitPaymentSummarySerializer,
-    OwnerPaymentReadSerializer,
 )
-from apps.payments import utils as pay_utils
 from apps.units.models import Unit
-from apps.owners.models import Owner
-from apps.rents.models import Rent
-
 
 
 class UnitPaymentListCreateView(generics.ListCreateAPIView):
@@ -84,6 +77,7 @@ class OwnerPaymentCreateView(generics.CreateAPIView):
         ctx.update({"owner": owner})
         return ctx
 
+
 class UnitPaymentSummaryView(views.APIView):
     permission_classes = [IsAdminUser]
 
@@ -93,11 +87,13 @@ class UnitPaymentSummaryView(views.APIView):
         serializer = UnitPaymentSummarySerializer(summary)
         return Response(serializer.data)
 
+
 class CompanyPaymentSummaryView(views.APIView):
     """
     Company-side summary: what remains for the company after paying owners and occasional deductions.
     Equivalent to /api/payments/all/payments/me
     """
+
     permission_classes = [IsAdminUser]
 
     def get(self, request):

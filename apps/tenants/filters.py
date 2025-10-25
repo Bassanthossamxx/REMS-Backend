@@ -1,24 +1,23 @@
-from django_filters import rest_framework as filters
 from django.db.models import Q
+from django_filters import rest_framework as filters
+
 from apps.tenants.models import Tenant
 
+
 class TenantFilter(filters.FilterSet):
-    full_name = filters.CharFilter(lookup_expr='icontains')
-    email = filters.CharFilter(lookup_expr='icontains')
-    phone = filters.CharFilter(lookup_expr='icontains')
-    address = filters.CharFilter(lookup_expr='icontains')
-    search = filters.CharFilter(method='filter_search')
-    status = filters.CharFilter(method='filter_status')
+    full_name = filters.CharFilter(lookup_expr="icontains")
+    email = filters.CharFilter(lookup_expr="icontains")
+    phone = filters.CharFilter(lookup_expr="icontains")
+    address = filters.CharFilter(lookup_expr="icontains")
+    search = filters.CharFilter(method="filter_search")
+    status = filters.CharFilter(method="filter_status")
 
     class Meta:
         model = Tenant
-        fields = ['full_name', 'email', 'phone', 'address', 'search', 'status']
+        fields = ["full_name", "email", "phone", "address", "search", "status"]
 
     def filter_search(self, queryset, name, value):
-        return queryset.filter(
-            Q(full_name__icontains=value) |
-            Q(rents__unit__name__icontains=value)
-        ).distinct()
+        return queryset.filter(Q(full_name__icontains=value) | Q(rents__unit__name__icontains=value)).distinct()
 
     def filter_status(self, queryset, name, value):
         today = timezone.now().date()
@@ -32,6 +31,4 @@ class TenantFilter(filters.FilterSet):
                 return "overdue"
             return "pending"
 
-        return queryset.filter(
-            rents__in=[rent for rent in Rent.objects.all() if get_status_filter(rent) == value]
-        )
+        return queryset.filter(rents__in=[rent for rent in Rent.objects.all() if get_status_filter(rent) == value])

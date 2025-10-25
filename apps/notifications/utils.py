@@ -1,11 +1,12 @@
 from datetime import timedelta
-from django.utils import timezone
+
 from django.db.models import Q
+from django.utils import timezone
 
-from apps.units.models import Unit
 from apps.inventory.models import Inventory
-from .models import Notification
+from apps.units.models import Unit
 
+from .models import Notification
 
 LEASE_MESSAGE_TPL = "Lease for unit '{name}' will end on {end}"
 LOW_STOCK_TPL = "Item '{name}' only has {qty} units remaining"
@@ -45,4 +46,3 @@ def check_and_create_notifications() -> None:
     # Cleanup: delete notifications older than 6 months
     six_months_ago = timezone.now() - timedelta(days=6 * 30)
     Notification.objects.filter(created_at__lt=six_months_ago).delete()
-

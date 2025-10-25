@@ -1,5 +1,7 @@
 from django.db import models
-from config.choices import STATUS_CHOICES , UNIT_CHOICES ,CATEGORY_CHOICES
+
+from config.choices import CATEGORY_CHOICES, STATUS_CHOICES, UNIT_CHOICES
+
 
 class Inventory(models.Model):
     name = models.CharField(max_length=100)

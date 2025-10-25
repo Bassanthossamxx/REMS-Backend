@@ -1,8 +1,11 @@
-from django.db import models
-from decimal import Decimal
-from django.core.validators import MinValueValidator
-from config.choices import PaymentMethod, OccasionalPaymentCategory
 from datetime import date
+from decimal import Decimal
+
+from django.core.validators import MinValueValidator
+from django.db import models
+
+from config.choices import OccasionalPaymentCategory, PaymentMethod
+
 
 # occi
 class OccasionalPayments(models.Model):
@@ -23,7 +26,7 @@ class OccasionalPayments(models.Model):
         max_length=20,
         choices=PaymentMethod.choices,
     )
-    payment_date = models.DateField(default=date.today , null=True, blank=True)
+    payment_date = models.DateField(default=date.today, null=True, blank=True)
     notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -35,6 +38,7 @@ class OccasionalPayments(models.Model):
         unit_name = getattr(self.unit, "name", str(self.unit_id))
         cat = self.category if self.category else "Unknown"
         return f"OccasionalPayment[{cat}] - {unit_name} - {self.amount}"
+
 
 # what we pay to Owner
 class OwnerPayment(models.Model):

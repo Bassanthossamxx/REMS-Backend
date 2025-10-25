@@ -1,6 +1,7 @@
 from rest_framework import serializers
-from apps.payments.models import OccasionalPayments, OwnerPayment
+
 from apps.payments import utils as pay_utils
+from apps.payments.models import OccasionalPayments, OwnerPayment
 
 
 class OccasionalPaymentSimpleSerializer(serializers.ModelSerializer):
