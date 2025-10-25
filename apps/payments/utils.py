@@ -1,26 +1,36 @@
 from __future__ import annotations
+
 from datetime import date, timedelta, datetime
 from decimal import Decimal
 from typing import Dict, Any
+
 from django.db.models import Sum, QuerySet
 from django.utils import timezone
+
+from apps.owners.models import Owner
 from apps.payments.models import OccasionalPayments, OwnerPayment
 from apps.rents.models import Rent
 from apps.units.models import Unit
-from apps.owners.models import Owner
+
+# Common Decimal quantization constants (no behavior change)
+TWO_PLACES = Decimal("0.01")
+FOUR_PLACES = Decimal("0.0001")
 
 
 def start_of_current_month_datetime() -> datetime:
+    """Return timezone-aware datetime for the first moment of the current month."""
     first_day = date.today().replace(day=1)
     return timezone.make_aware(datetime.combine(first_day, datetime.min.time()))
 
 
 def start_of_current_month_date() -> date:
+    """Return date for the first day of the current month."""
     return date.today().replace(day=1)
 
 
 def unit_payments_summary(unit_id: int) -> dict:
     """
+    Existing helper retained: totals for occasional payments only.
     Returns dict with keys:
       - total_occasional_payment: Decimal
       - total_occasional_payment_last_month: Decimal
@@ -49,7 +59,17 @@ def unit_payments_summary(unit_id: int) -> dict:
     }
 
 
+# --- Analytics helpers ---
+
+
 def calculate_owner_payment_summary(owner_id: int) -> dict:
+    """
+    Build per-owner payment summary.
+    Payload keys (unchanged):
+      owner_id, owner_name, total_this_month, total, total_occasional_this_month,
+      total_occasional, total_after_occasional_this_month, total_after_occasional,
+      owner_total_this_month, owner_total, paid_to_owner_total, still_need_to_pay, units
+    """
     owner = Owner.objects.get(pk=owner_id)
     start_dt = start_of_current_month_datetime()
     start_d = start_of_current_month_date()
@@ -129,19 +149,19 @@ def calculate_owner_payment_summary(owner_id: int) -> dict:
         after_all = before_all - occ_all
         after_m = before_m - occ_m
         frac = (u.owner_percentage or Decimal("0")) / Decimal("100")
-        o_all = (after_all * frac).quantize(Decimal("0.01"))
-        o_m = (after_m * frac).quantize(Decimal("0.01"))
+        o_all = (after_all * frac).quantize(TWO_PLACES)
+        o_m = (after_m * frac).quantize(TWO_PLACES)
 
         unit_rows.append({
             "unit_id": u.id,
             "unit_name": u.name,
-            "owner_percentage": frac.quantize(Decimal("0.0001")),
-            "total": before_all.quantize(Decimal("0.01")),
-            "total_this_month": before_m.quantize(Decimal("0.01")),
-            "total_occasional": occ_all.quantize(Decimal("0.01")),
-            "total_occasional_this_month": occ_m.quantize(Decimal("0.01")),
-            "total_after_occasional": after_all.quantize(Decimal("0.01")),
-            "total_after_occasional_this_month": after_m.quantize(Decimal("0.01")),
+            "owner_percentage": frac.quantize(FOUR_PLACES),
+            "total": before_all.quantize(TWO_PLACES),
+            "total_this_month": before_m.quantize(TWO_PLACES),
+            "total_occasional": occ_all.quantize(TWO_PLACES),
+            "total_occasional_this_month": occ_m.quantize(TWO_PLACES),
+            "total_after_occasional": after_all.quantize(TWO_PLACES),
+            "total_after_occasional_this_month": after_m.quantize(TWO_PLACES),
             "owner_total": o_all,
             "owner_total_this_month": o_m,
         })
@@ -152,29 +172,36 @@ def calculate_owner_payment_summary(owner_id: int) -> dict:
         OwnerPayment.objects.filter(owner=owner).aggregate(total=Sum("amount")).get("total")
         or Decimal("0.00")
     )
-    still_need_to_pay = (owner_total_all_time - paid_to_owner_total).quantize(Decimal("0.01"))
+    still_need_to_pay = (owner_total_all_time - paid_to_owner_total).quantize(TWO_PLACES)
 
-    company_total_all_time = (total_after_all_time - owner_total_all_time).quantize(Decimal("0.01"))
-    company_total_this_month = (total_after_this_month - owner_total_this_month).quantize(Decimal("0.01"))
+    company_total_all_time = (total_after_all_time - owner_total_all_time).quantize(TWO_PLACES)
+    company_total_this_month = (total_after_this_month - owner_total_this_month).quantize(TWO_PLACES)
 
     return {
         "owner_id": owner.id,
         "owner_name": owner.full_name,
-        "total_this_month": total_before_this_month.quantize(Decimal("0.01")),
-        "total": total_before_all_time.quantize(Decimal("0.01")),
-        "total_occasional_this_month": total_occasional_this_month.quantize(Decimal("0.01")),
-        "total_occasional": total_occasional_all_time.quantize(Decimal("0.01")),
-        "total_after_occasional_this_month": total_after_this_month.quantize(Decimal("0.01")),
-        "total_after_occasional": total_after_all_time.quantize(Decimal("0.01")),
-        "owner_total_this_month": owner_total_this_month.quantize(Decimal("0.01")),
-        "owner_total": owner_total_all_time.quantize(Decimal("0.01")),
-        "paid_to_owner_total": Decimal(paid_to_owner_total).quantize(Decimal("0.01")),
+        "total_this_month": total_before_this_month.quantize(TWO_PLACES),
+        "total": total_before_all_time.quantize(TWO_PLACES),
+        "total_occasional_this_month": total_occasional_this_month.quantize(TWO_PLACES),
+        "total_occasional": total_occasional_all_time.quantize(TWO_PLACES),
+        "total_after_occasional_this_month": total_after_this_month.quantize(TWO_PLACES),
+        "total_after_occasional": total_after_all_time.quantize(TWO_PLACES),
+        "owner_total_this_month": owner_total_this_month.quantize(TWO_PLACES),
+        "owner_total": owner_total_all_time.quantize(TWO_PLACES),
+        "paid_to_owner_total": Decimal(paid_to_owner_total).quantize(TWO_PLACES),
         "still_need_to_pay": still_need_to_pay,
         "units": unit_rows,
     }
 
 
 def calculate_unit_payment_summary(unit_id: int) -> dict:
+    """
+    Build per-unit payment summary.
+    Payload keys (unchanged):
+      unit_id, unit_name, owner_id, owner_name, owner_percentage, total_this_month, total,
+      total_occasional_this_month, total_occasional, total_after_occasional_this_month,
+      total_after_occasional, company_total_this_month, company_total
+    """
     unit = Unit.objects.select_related("owner").get(pk=unit_id)
     start_dt = start_of_current_month_datetime()
     start_d = start_of_current_month_date()
@@ -201,30 +228,38 @@ def calculate_unit_payment_summary(unit_id: int) -> dict:
     total_after_this_month = total_before_this_month - total_occasional_this_month
 
     frac = (unit.owner_percentage or Decimal("0")) / Decimal("100")
-    owner_total_all_time = (total_after_all_time * frac).quantize(Decimal("0.01"))
-    owner_total_this_month = (total_after_this_month * frac).quantize(Decimal("0.01"))
+    owner_total_all_time = (total_after_all_time * frac).quantize(TWO_PLACES)
+    owner_total_this_month = (total_after_this_month * frac).quantize(TWO_PLACES)
 
-    company_total_all_time = (total_after_all_time - owner_total_all_time).quantize(Decimal("0.01"))
-    company_total_this_month = (total_after_this_month - owner_total_this_month).quantize(Decimal("0.01"))
+    company_total_all_time = (total_after_all_time - owner_total_all_time).quantize(TWO_PLACES)
+    company_total_this_month = (total_after_this_month - owner_total_this_month).quantize(TWO_PLACES)
 
     return {
         "unit_id": unit.id,
         "unit_name": unit.name,
         "owner_id": unit.owner_id,
         "owner_name": unit.owner.full_name,
-        "owner_percentage": frac.quantize(Decimal("0.0001")),
-        "total_this_month": total_before_this_month.quantize(Decimal("0.01")),
-        "total": total_before_all_time.quantize(Decimal("0.01")),
-        "total_occasional_this_month": total_occasional_this_month.quantize(Decimal("0.01")),
-        "total_occasional": total_occasional_all_time.quantize(Decimal("0.01")),
-        "total_after_occasional_this_month": total_after_this_month.quantize(Decimal("0.01")),
-        "total_after_occasional": total_after_all_time.quantize(Decimal("0.01")),
+        "owner_percentage": frac.quantize(FOUR_PLACES),
+        "total_this_month": total_before_this_month.quantize(TWO_PLACES),
+        "total": total_before_all_time.quantize(TWO_PLACES),
+        "total_occasional_this_month": total_occasional_this_month.quantize(TWO_PLACES),
+        "total_occasional": total_occasional_all_time.quantize(TWO_PLACES),
+        "total_after_occasional_this_month": total_after_this_month.quantize(TWO_PLACES),
+        "total_after_occasional": total_after_all_time.quantize(TWO_PLACES),
         "company_total_this_month": company_total_this_month,
         "company_total": company_total_all_time,
     }
 
 
 def calculate_company_payment_summary(unit_id: int | None = None) -> dict:
+    """
+    Build company-wide payment summary, optionally scoped to a unit.
+    Payload keys (unchanged):
+      total_this_month, total, total_occasional_this_month, total_occasional,
+      total_after_occasional_this_month, total_after_occasional,
+      owner_total_this_month, owner_total, company_total_this_month, company_total,
+      [unit_id if provided]
+    """
     start_dt = start_of_current_month_datetime()
     start_d = start_of_current_month_date()
 
@@ -296,19 +331,19 @@ def calculate_company_payment_summary(unit_id: int | None = None) -> dict:
         frac = (Decimal(perc_map.get(uid, Decimal("0"))) / Decimal("100"))
         owner_total_this_month += (after_m * frac)
 
-    owner_total_all_time = owner_total_all_time.quantize(Decimal("0.01"))
-    owner_total_this_month = owner_total_this_month.quantize(Decimal("0.01"))
+    owner_total_all_time = owner_total_all_time.quantize(TWO_PLACES)
+    owner_total_this_month = owner_total_this_month.quantize(TWO_PLACES)
 
-    company_total_all_time = (total_after_all_time - owner_total_all_time).quantize(Decimal("0.01"))
-    company_total_this_month = (total_after_this_month - owner_total_this_month).quantize(Decimal("0.01"))
+    company_total_all_time = (total_after_all_time - owner_total_all_time).quantize(TWO_PLACES)
+    company_total_this_month = (total_after_this_month - owner_total_this_month).quantize(TWO_PLACES)
 
     payload: Dict[str, Any] = {
-        "total_this_month": total_before_this_month.quantize(Decimal("0.01")),
-        "total": total_before_all_time.quantize(Decimal("0.01")),
-        "total_occasional_this_month": total_occasional_this_month.quantize(Decimal("0.01")),
-        "total_occasional": total_occasional_all_time.quantize(Decimal("0.01")),
-        "total_after_occasional_this_month": total_after_this_month.quantize(Decimal("0.01")),
-        "total_after_occasional": total_after_all_time.quantize(Decimal("0.01")),
+        "total_this_month": total_before_this_month.quantize(TWO_PLACES),
+        "total": total_before_all_time.quantize(TWO_PLACES),
+        "total_occasional_this_month": total_occasional_this_month.quantize(TWO_PLACES),
+        "total_occasional": total_occasional_all_time.quantize(TWO_PLACES),
+        "total_after_occasional_this_month": total_after_this_month.quantize(TWO_PLACES),
+        "total_after_occasional": total_after_all_time.quantize(TWO_PLACES),
         "owner_total_this_month": owner_total_this_month,
         "owner_total": owner_total_all_time,
         "company_total_this_month": company_total_this_month,

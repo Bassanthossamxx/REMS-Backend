@@ -42,13 +42,13 @@ This is a complete, self-contained guide for integrating the payments (occasiona
 ---
 
 ## Key terms (analytics)
-- "this_month": From the 1st day of the current calendar month until now (server timezone).
-- "all_time": Cumulative from the beginning of data until now.
-- total_before: Total rent before any deductions.
+- this_month: From the 1st day of the current calendar month until now (server timezone).
+- all_time: Cumulative from the beginning of data until now.
+- total: Total rent before any deductions.
 - total_occasional: Sum of occasional (deductions/expenses) entries.
-- total_after: Net after deductions = total_before − total_occasional.
-- owner_total: The owner's share after deductions, using each unit's `owner_percentage` (as a fraction, e.g., 0.60 for 60%).
-- company_total: What remains for the company after paying the owner = total_after − owner_total.
+- total_after_occasional: Net after deductions = total − total_occasional.
+- owner_total: The owner's share after deductions, using each unit's owner_percentage (as a fraction, e.g., 0.60 for 60%).
+- company_total: What remains for the company after paying the owner = total_after_occasional − owner_total.
 
 Decimals are returned as strings (e.g., "150.00").
 
@@ -94,19 +94,19 @@ List response wrapper shape:
 
 ## Endpoints overview
 
-| Method | Path                                      | Description                                       | Auth | Pagination |
-|--------|-------------------------------------------|---------------------------------------------------|------|------------|
-| GET    | /payments/{unit_id}/                      | List occasional payments for a unit               | Yes  | Yes        |
-| POST   | /payments/{unit_id}/                      | Create an occasional payment for a unit           | Yes  | No         |
-| GET    | /payments/{unit_id}/{id}/                 | Retrieve a specific occasional payment            | Yes  | No         |
-| PUT    | /payments/{unit_id}/{id}/                 | Full update an occasional payment                 | Yes  | No         |
-| PATCH  | /payments/{unit_id}/{id}/                 | Partial update an occasional payment              | Yes  | No         |
-| DELETE | /payments/{unit_id}/{id}/                 | Delete an occasional payment                      | Yes  | No         |
-| GET    | /payments/all/owner/{owner_id}/           | Owner analytics summary (this month + all time)   | Yes  | No         |
-| POST   | /payments/all/owner/{owner_id}/pay/       | Record a payout to owner                          | Yes  | No         |
-| GET    | /payments/all/unit/{unit_id}/             | Unit analytics summary (this month + all time)    | Yes  | No         |
-| GET    | /payments/all/payments/me/                | Company summary (this month + all time)           | Yes  | No         |
-| GET    | /payments/all/payments/me/{unit_id}/      | Company summary for a specific unit               | Yes  | No         |
+| Method | Path                                  | Description                                       | Auth | Pagination |
+|--------|---------------------------------------|---------------------------------------------------|------|------------|
+| GET    | /payments/{unit_id}/                  | List occasional payments for a unit               | Yes  | Yes        |
+| POST   | /payments/{unit_id}/                  | Create an occasional payment for a unit           | Yes  | No         |
+| GET    | /payments/{unit_id}/{id}/             | Retrieve a specific occasional payment            | Yes  | No         |
+| PUT    | /payments/{unit_id}/{id}/             | Full update an occasional payment                 | Yes  | No         |
+| PATCH  | /payments/{unit_id}/{id}/             | Partial update an occasional payment              | Yes  | No         |
+| DELETE | /payments/{unit_id}/{id}/             | Delete an occasional payment                      | Yes  | No         |
+| GET    | /payments/all/owner/{owner_id}/       | Owner analytics summary (this month + all time)   | Yes  | No         |
+| POST   | /payments/owner/{owner_id}/pay/       | Record a payout to owner                          | Yes  | No         |
+| GET    | /payments/all/unit/{unit_id}/         | Unit analytics summary (this month + all time)    | Yes  | No         |
+| GET    | /payments/all/payments/me/            | Company summary (this month + all time)           | Yes  | No         |
+| GET    | /payments/all/payments/me/{unit_id}/  | Company summary for a specific unit               | Yes  | No         |
 
 ---
 
@@ -259,7 +259,7 @@ Response 200 example
 }
 ```
 
-Errors: 401, 403, 404
+Errors: 400, 401, 403, 404
 
 ---
 
@@ -350,7 +350,7 @@ Path params
 
 Success: 204 No Content (empty body)
 
-Errors: 401, 403, 404
+Errors: 400, 401, 403, 404
 
 ---
 
@@ -372,35 +372,33 @@ Response body (fields)
 |-------------------------------|---------|-------|
 | owner_id                      | integer | Owner ID |
 | owner_name                    | string  | Owner full name |
-| total_before_this_month       | decimal | Rent total from 1st of this month until now (no deductions) |
-| total_before_all_time         | decimal | Rent total all time (no deductions) |
+| total_this_month              | decimal | Rent total from 1st of this month until now (no deductions) |
+| total                         | decimal | Rent total all time (no deductions) |
 | total_occasional_this_month   | decimal | Occasional deductions this month |
-| total_occasional_all_time     | decimal | Occasional deductions all time |
-| total_after_this_month        | decimal | Net this month = before − occasional |
-| total_after_all_time          | decimal | Net all time = before − occasional |
+| total_occasional              | decimal | Occasional deductions all time |
+| total_after_occasional_this_month | decimal | Net this month = total − total_occasional |
+| total_after_occasional        | decimal | Net all time = total − total_occasional |
 | owner_total_this_month        | decimal | Owner share this month after deductions |
-| owner_total_all_time          | decimal | Owner share all time after deductions |
-| company_total_this_month      | decimal | Company share this month = net − owner |
-| company_total_all_time        | decimal | Company share all time = net − owner |
+| owner_total                   | decimal | Owner share all time after deductions |
 | paid_to_owner_total           | decimal | Sum of all payouts already made to this owner |
-| still_need_to_pay             | decimal | Owner_total_all_time − paid_to_owner_total |
+| still_need_to_pay             | decimal | owner_total − paid_to_owner_total |
 | units                         | array   | Per-unit breakdown (see below) |
 
 Per-unit breakdown item
 
-| Field                       | Type    | Notes |
-|-----------------------------|---------|-------|
-| unit_id                     | integer | Unit ID |
-| unit_name                   | string  | Unit name |
-| owner_percentage            | decimal | Fraction, e.g., 0.60 for 60% |
-| total_before_all_time       | decimal | Rent total (no deductions) |
-| total_occasional_all_time   | decimal | Deductions total |
-| total_after_all_time        | decimal | Net = before − occasional |
-| owner_total_all_time        | decimal | Owner share after deductions |
-| total_before_this_month     | decimal | Rent this month (no deductions) |
-| total_occasional_this_month | decimal | Deductions this month |
-| total_after_this_month      | decimal | Net this month |
-| owner_total_this_month      | decimal | Owner share this month |
+| Field                            | Type    | Notes |
+|----------------------------------|---------|-------|
+| unit_id                          | integer | Unit ID |
+| unit_name                        | string  | Unit name |
+| owner_percentage                 | decimal | Fraction, e.g., 0.60 for 60% |
+| total                            | decimal | Rent total all time (no deductions) |
+| total_this_month                 | decimal | Rent this month (no deductions) |
+| total_occasional                 | decimal | Deductions total all time |
+| total_occasional_this_month      | decimal | Deductions this month |
+| total_after_occasional           | decimal | Net all time = total − total_occasional |
+| total_after_occasional_this_month| decimal | Net this month |
+| owner_total                      | decimal | Owner share all time after deductions |
+| owner_total_this_month           | decimal | Owner share this month |
 
 Response 200 example
 
@@ -408,16 +406,14 @@ Response 200 example
 {
   "owner_id": 3,
   "owner_name": "Ahmed Ali",
-  "total_before_this_month": "25000.00",
-  "total_before_all_time": "180000.00",
+  "total_this_month": "25000.00",
+  "total": "180000.00",
   "total_occasional_this_month": "2000.00",
-  "total_occasional_all_time": "4000.00",
-  "total_after_this_month": "23000.00",
-  "total_after_all_time": "176000.00",
+  "total_occasional": "4000.00",
+  "total_after_occasional_this_month": "23000.00",
+  "total_after_occasional": "176000.00",
   "owner_total_this_month": "13800.00",
-  "owner_total_all_time": "105600.00",
-  "company_total_this_month": "9200.00",
-  "company_total_all_time": "70400.00",
+  "owner_total": "105600.00",
   "paid_to_owner_total": "90000.00",
   "still_need_to_pay": "15600.00",
   "units": [
@@ -425,13 +421,13 @@ Response 200 example
       "unit_id": 12,
       "unit_name": "A-101",
       "owner_percentage": "0.6000",
-      "total_before_all_time": "100000.00",
-      "total_occasional_all_time": "2000.00",
-      "total_after_all_time": "98000.00",
-      "owner_total_all_time": "58800.00",
-      "total_before_this_month": "10000.00",
+      "total": "100000.00",
+      "total_this_month": "10000.00",
+      "total_occasional": "2000.00",
       "total_occasional_this_month": "1000.00",
-      "total_after_this_month": "9000.00",
+      "total_after_occasional": "98000.00",
+      "total_after_occasional_this_month": "9000.00",
+      "owner_total": "58800.00",
       "owner_total_this_month": "5400.00"
     }
   ]
@@ -444,7 +440,7 @@ Errors
 ---
 
 ### 8) Record a payout to owner
-- Method and path: `POST /payments/all/owner/{owner_id}/pay/`
+- Method and path: `POST /payments/owner/{owner_id}/pay/`
 - Records a manual payout to the owner.
 
 Path params
@@ -509,16 +505,14 @@ Response body (fields)
 | owner_id                      | integer | Owner ID |
 | owner_name                    | string  | Owner name |
 | owner_percentage              | decimal | Fraction, e.g., 0.60 for 60% |
-| total_before_this_month       | decimal | Rent this month (no deductions) |
-| total_before_all_time         | decimal | Rent all time (no deductions) |
+| total_this_month              | decimal | Rent this month (no deductions) |
+| total                         | decimal | Rent all time (no deductions) |
 | total_occasional_this_month   | decimal | Deductions this month |
-| total_occasional_all_time     | decimal | Deductions all time |
-| total_after_this_month        | decimal | Net this month |
-| total_after_all_time          | decimal | Net all time |
-| owner_total_this_month        | decimal | Owner share this month |
-| owner_total_all_time          | decimal | Owner share all time |
-| company_total_this_month      | decimal | Company share this month |
-| company_total_all_time        | decimal | Company share all time |
+| total_occasional              | decimal | Deductions all time |
+| total_after_occasional_this_month | decimal | Net this month |
+| total_after_occasional        | decimal | Net all time |
+| company_total_this_month      | decimal | Company share this month = net − owner |
+| company_total                 | decimal | Company share all time = net − owner |
 
 Response 200 example
 
@@ -529,16 +523,15 @@ Response 200 example
   "owner_id": 3,
   "owner_name": "Ahmed Ali",
   "owner_percentage": "0.6000",
-  "total_before_this_month": "10000.00",
-  "total_before_all_time": "100000.00",
+  "total_this_month": "10000.00",
+  "total": "100000.00",
   "total_occasional_this_month": "1000.00",
-  "total_occasional_all_time": "2000.00",
-  "total_after_this_month": "9000.00",
-  "total_after_all_time": "98000.00",
+  "total_occasional": "2000.00",
+  "total_after_occasional_this_month": "9000.00",
+  "total_after_occasional": "98000.00",
   "owner_total_this_month": "5400.00",
-  "owner_total_all_time": "58800.00",
   "company_total_this_month": "3600.00",
-  "company_total_all_time": "39200.00"
+  "company_total": "39200.00"
 }
 ```
 
@@ -555,16 +548,16 @@ Response 200 example
 
 ```json
 {
-  "total_before_this_month": "25000.00",
-  "total_before_all_time": "180000.00",
+  "total_this_month": "25000.00",
+  "total": "180000.00",
   "total_occasional_this_month": "2000.00",
-  "total_occasional_all_time": "4000.00",
-  "total_after_this_month": "23000.00",
-  "total_after_all_time": "176000.00",
+  "total_occasional": "4000.00",
+  "total_after_occasional_this_month": "23000.00",
+  "total_after_occasional": "176000.00",
   "owner_total_this_month": "13800.00",
-  "owner_total_all_time": "105600.00",
+  "owner_total": "105600.00",
   "company_total_this_month": "9200.00",
-  "company_total_all_time": "70400.00"
+  "company_total": "70400.00"
 }
 ```
 
@@ -587,16 +580,16 @@ Response 200 example
 ```json
 {
   "unit_id": 12,
-  "total_before_this_month": "10000.00",
-  "total_before_all_time": "100000.00",
+  "total_this_month": "10000.00",
+  "total": "100000.00",
   "total_occasional_this_month": "1000.00",
-  "total_occasional_all_time": "2000.00",
-  "total_after_this_month": "9000.00",
-  "total_after_all_time": "98000.00",
+  "total_occasional": "2000.00",
+  "total_after_occasional_this_month": "9000.00",
+  "total_after_occasional": "98000.00",
   "owner_total_this_month": "5400.00",
-  "owner_total_all_time": "58800.00",
+  "owner_total": "58800.00",
   "company_total_this_month": "3600.00",
-  "company_total_all_time": "39200.00"
+  "company_total": "39200.00"
 }
 ```
 
