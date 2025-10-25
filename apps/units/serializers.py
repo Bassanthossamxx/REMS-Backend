@@ -83,7 +83,7 @@ class UnitSerializer(serializers.ModelSerializer):
             image.image.url for image in instance.images.all()
         ]
 
-        # Add payments summary via utils (no business logic here)
+        # Add payments summary via utils (occasional payments quick summary)
         try:
             summary = pay_utils.unit_payments_summary(instance.id)
             representation["payments_summary"] = {
@@ -99,6 +99,9 @@ class UnitSerializer(serializers.ModelSerializer):
                 "total_occasional_payment_last_month": "0.00",
                 "last_month_payments": [],
             }
+
+        # Embed full unit payment analytics (rent + deductions + shares) by calling the existing util
+        representation["unit_payment_summary"] = pay_utils.calculate_unit_payment_summary(instance.id)
 
         return representation
 

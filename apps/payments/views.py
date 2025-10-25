@@ -14,6 +14,7 @@ from apps.payments.serializers import (
     OwnerPaymentCreateSerializer,
     OwnerPaymentSummarySerializer,
     UnitPaymentSummarySerializer,
+    OwnerPaymentReadSerializer,
 )
 from apps.payments import utils as pay_utils
 from apps.units.models import Unit
@@ -60,8 +61,16 @@ class OwnerPaymentSummaryView(views.APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request, owner_id: int):
+        # Ensure owner exists
+        owner = get_object_or_404(Owner, pk=owner_id)
         # Calculate via utils for clarity and reuse
         summary = pay_utils.calculate_owner_payment_summary(owner_id)
+
+        # Attach payouts history
+        history_qs = OwnerPayment.objects.filter(owner=owner).order_by("-date", "-id")
+        history_data = OwnerPaymentReadSerializer(history_qs, many=True).data
+        summary["payments_history"] = history_data
+
         serializer = OwnerPaymentSummarySerializer(summary)
         return Response(serializer.data)
 
@@ -76,7 +85,6 @@ class OwnerPaymentCreateView(generics.CreateAPIView):
         ctx.update({"owner": owner})
         return ctx
 
-
 class UnitPaymentSummaryView(views.APIView):
     permission_classes = [IsAdminUser]
 
@@ -85,7 +93,6 @@ class UnitPaymentSummaryView(views.APIView):
         summary = pay_utils.calculate_unit_payment_summary(unit_id)
         serializer = UnitPaymentSummarySerializer(summary)
         return Response(serializer.data)
-
 
 class CompanyPaymentSummaryView(views.APIView):
     """
@@ -97,17 +104,3 @@ class CompanyPaymentSummaryView(views.APIView):
     def get(self, request):
         summary = pay_utils.calculate_company_payment_summary(unit_id=None)
         return Response(summary)
-
-
-class CompanyPaymentSummaryPerUnitView(views.APIView):
-    """
-    Company-side summary for a specific unit: /api/payments/all/payments/me/<unit_id>/
-    """
-    permission_classes = [IsAdminUser]
-
-    def get(self, request, unit_id: int):
-        # Ensure unit exists
-        get_object_or_404(Unit, pk=unit_id)
-        summary = pay_utils.calculate_company_payment_summary(unit_id=unit_id)
-        return Response(summary)
-

@@ -89,6 +89,14 @@ class OwnerPaymentCreateSerializer(serializers.ModelSerializer):
         return OwnerPayment.objects.create(owner=owner, amount=amount, notes=notes)
 
 
+# New: read serializer for payout history
+class OwnerPaymentReadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OwnerPayment
+        fields = ["id", "owner", "amount", "notes", "date"]
+        read_only_fields = fields
+
+
 # --- Analytics serializers matching utils keys ---
 class OwnerUnitBreakdownSerializer(serializers.Serializer):
     unit_id = serializers.IntegerField()
@@ -130,6 +138,9 @@ class OwnerPaymentSummarySerializer(serializers.Serializer):
     still_need_to_pay = serializers.DecimalField(max_digits=14, decimal_places=2)
 
     units = OwnerUnitBreakdownSerializer(many=True)
+
+    # New: embed payout history
+    payments_history = OwnerPaymentReadSerializer(many=True, read_only=True)
 
 
 class UnitPaymentSummarySerializer(serializers.Serializer):

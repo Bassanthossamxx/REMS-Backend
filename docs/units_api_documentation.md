@@ -69,27 +69,29 @@ Common responses:
 
 ### Model Fields (Request/Response)
 
-| Field            | Type           | Notes                                              |
-| ---------------- | -------------- | -------------------------------------------------- |
-| id               | integer        | read-only                                          |
-| name             | string         | unique, required                                   |
-| owner            | integer        | Owner id, required                                 |
-| city             | integer        | City id, required                                  |
-| district         | integer        | District id, required                              |
-| location_url     | string         | valid Google/Apple Maps URL, required              |
-| location_text    | string         | required                                           |
-| lease_start      | date           | required, date format `YYYY-MM-DD`                 |
-| lease_end        | date           | required, date format `YYYY-MM-DD`                 |
-| status           | string         | default: available                                 |
-| type             | string         | required                                           |
-| bedrooms         | integer        | >= 0, required                                     |
-| bathrooms        | integer        | >= 0, required                                     |
-| area             | integer        | >= 0, required                                     |
-| price_per_day    | decimal        | default 0                                          |
-| owner_percentage | decimal        | 0..100 (default 0)                                 |
-| images           | array of files | write-only, optional (replaces existing on update) |
-| Extra            | response only  | `details { type, bedrooms, bathrooms, area }`      |
-| Extra            | response only  | `payments_summary { total_occasional_payment, total_occasional_payment_last_month, last_month_payments[] }` |
+| Field            | Type                 | Notes                                                                                         |
+| ---------------- | -------------------- | --------------------------------------------------------------------------------------------- |
+| id               | integer              | read-only                                                                                     |
+| name             | string               | unique, required                                                                              |
+| owner            | integer              | Owner id, required                                                                            |
+| city             | integer              | City id, required                                                                             |
+| district         | integer              | District id, required                                                                         |
+| location_url     | string               | valid Google/Apple Maps URL, required                                                         |
+| location_text    | string               | required                                                                                      |
+| lease_start      | date                 | required, date format `YYYY-MM-DD`                                                            |
+| lease_end        | date                 | required, date format `YYYY-MM-DD`                                                            |
+| status           | string               | default: available                                                                            |
+| type             | string               | required                                                                                      |
+| bedrooms         | integer              | >= 0, required                                                                                |
+| bathrooms        | integer              | >= 0, required                                                                                |
+| area             | integer              | >= 0, required                                                                                |
+| price_per_day    | decimal              | default 0                                                                                     |
+| owner_percentage | decimal              | 0..100 (default 0)                                                                            |
+| images (request) | array of files       | write-only, optional (replaces existing on update)                                            |
+| images (response)| array of strings     | response-only list of image URLs                                                              |
+| Extra            | response only        | `details { type, bedrooms, bathrooms, area }`                                                 |
+| Extra            | response only        | `payments_summary { total_occasional_payment, total_occasional_payment_last_month, last_month_payments[] }` |
+| Extra            | response only        | `unit_payment_summary { unit_id, unit_name, owner_id, owner_name, owner_percentage, total_this_month, total, total_occasional_this_month, total_occasional, total_after_occasional_this_month, total_after_occasional, company_total_this_month, company_total }` |
 
 ---
 
@@ -164,6 +166,10 @@ Common responses:
   "price_per_day": "120.00",
   "owner_percentage": "30.00",
   "details": { "type": "apartment", "bedrooms": 2, "bathrooms": 1, "area": 90 },
+  "images": [
+    "/media/units/12/image-1.jpg",
+    "/media/units/12/image-2.jpg"
+  ],
   "payments_summary": {
     "total_occasional_payment": "275.50",
     "total_occasional_payment_last_month": "95.50",
@@ -180,6 +186,21 @@ Common responses:
         "updated_at": "2025-09-14T08:00:00Z"
       }
     ]
+  },
+  "unit_payment_summary": {
+    "unit_id": 12,
+    "unit_name": "A-101",
+    "owner_id": 3,
+    "owner_name": "Ahmed Ali",
+    "owner_percentage": "0.6000",
+    "total_this_month": "10000.00",
+    "total": "100000.00",
+    "total_occasional_this_month": "1000.00",
+    "total_occasional": "2000.00",
+    "total_after_occasional_this_month": "9000.00",
+    "total_after_occasional": "98000.00",
+    "company_total_this_month": "3600.00",
+    "company_total": "39200.00"
   }
 }
 ```
@@ -245,7 +266,8 @@ If images provided → replaces all.
 ### Notes (Units)
 
 * `lease_start` / `lease_end` reflect when the owner gave the unit to the company (not tenant leases).
-* Images are write-only.
+* Images upload are write-only in requests; responses include a list of image URLs under `images`.
+* `unit_payment_summary` provides embedded analytics for the unit (rent totals, deductions, owner/company shares). The same analytics are also available via the standalone endpoint `GET /api/all/payments/unit/{unit_id}/`.
 * Use filters for `from_date` and `to_date` to find available units in a range.
 * List endpoint is compact; retrieve gives full details.
 
