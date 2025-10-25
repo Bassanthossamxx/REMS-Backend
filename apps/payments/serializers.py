@@ -1,6 +1,5 @@
 from rest_framework import serializers
-from apps.payments.models import OccasionalPayments
-from datetime import date
+from apps.payments.models import OccasionalPayments, OwnerPayment
 from apps.payments import utils as pay_utils
 
 
@@ -71,3 +70,76 @@ class OccasionalPaymentWithSummarySerializer(OccasionalPaymentSerializer):
     def get_total_occasional_payment_last_month(self, obj: OccasionalPayments):
         summary = self._get_summary(obj.unit_id)
         return f"{summary['total_occasional_payment_last_month']:.2f}"
+
+
+# --- New: Owner payout tracking ---
+class OwnerPaymentCreateSerializer(serializers.ModelSerializer):
+    # Accept amount_paid in request and map to model's amount
+    amount_paid = serializers.DecimalField(max_digits=12, decimal_places=2, write_only=True)
+
+    class Meta:
+        model = OwnerPayment
+        fields = ["id", "owner", "amount_paid", "notes", "date"]
+        read_only_fields = ("id", "owner", "date")
+
+    def create(self, validated_data):
+        owner = self.context["owner"]
+        amount = validated_data.pop("amount_paid")
+        notes = validated_data.get("notes")
+        return OwnerPayment.objects.create(owner=owner, amount=amount, notes=notes)
+
+
+# Analytics serializers matching utils keys
+class OwnerUnitBreakdownSerializer(serializers.Serializer):
+    unit_id = serializers.IntegerField()
+    unit_name = serializers.CharField()
+    owner_percentage = serializers.DecimalField(max_digits=5, decimal_places=4)
+    total_before_all_time = serializers.DecimalField(max_digits=14, decimal_places=2)
+    total_occasional_all_time = serializers.DecimalField(max_digits=14, decimal_places=2)
+    total_after_all_time = serializers.DecimalField(max_digits=14, decimal_places=2)
+    owner_total_all_time = serializers.DecimalField(max_digits=14, decimal_places=2)
+    total_before_this_month = serializers.DecimalField(max_digits=14, decimal_places=2)
+    total_occasional_this_month = serializers.DecimalField(max_digits=14, decimal_places=2)
+    total_after_this_month = serializers.DecimalField(max_digits=14, decimal_places=2)
+    owner_total_this_month = serializers.DecimalField(max_digits=14, decimal_places=2)
+
+
+class OwnerPaymentSummarySerializer(serializers.Serializer):
+    owner_id = serializers.IntegerField()
+    owner_name = serializers.CharField()
+    total_before_this_month = serializers.DecimalField(max_digits=14, decimal_places=2)
+    total_before_all_time = serializers.DecimalField(max_digits=14, decimal_places=2)
+    total_occasional_this_month = serializers.DecimalField(max_digits=14, decimal_places=2)
+    total_occasional_all_time = serializers.DecimalField(max_digits=14, decimal_places=2)
+    total_after_this_month = serializers.DecimalField(max_digits=14, decimal_places=2)
+    total_after_all_time = serializers.DecimalField(max_digits=14, decimal_places=2)
+    owner_total_this_month = serializers.DecimalField(max_digits=14, decimal_places=2)
+    owner_total_all_time = serializers.DecimalField(max_digits=14, decimal_places=2)
+    company_total_this_month = serializers.DecimalField(max_digits=14, decimal_places=2)
+    company_total_all_time = serializers.DecimalField(max_digits=14, decimal_places=2)
+    paid_to_owner_total = serializers.DecimalField(max_digits=14, decimal_places=2)
+    still_need_to_pay = serializers.DecimalField(max_digits=14, decimal_places=2)
+    units = OwnerUnitBreakdownSerializer(many=True)
+
+
+class UnitPaymentSummarySerializer(serializers.Serializer):
+    unit_id = serializers.IntegerField()
+    unit_name = serializers.CharField()
+    owner_id = serializers.IntegerField()
+    owner_name = serializers.CharField()
+    owner_percentage = serializers.DecimalField(max_digits=5, decimal_places=4)
+
+    total_before_this_month = serializers.DecimalField(max_digits=14, decimal_places=2)
+    total_before_all_time = serializers.DecimalField(max_digits=14, decimal_places=2)
+
+    total_occasional_this_month = serializers.DecimalField(max_digits=14, decimal_places=2)
+    total_occasional_all_time = serializers.DecimalField(max_digits=14, decimal_places=2)
+
+    total_after_this_month = serializers.DecimalField(max_digits=14, decimal_places=2)
+    total_after_all_time = serializers.DecimalField(max_digits=14, decimal_places=2)
+
+    owner_total_this_month = serializers.DecimalField(max_digits=14, decimal_places=2)
+    owner_total_all_time = serializers.DecimalField(max_digits=14, decimal_places=2)
+
+    company_total_this_month = serializers.DecimalField(max_digits=14, decimal_places=2)
+    company_total_all_time = serializers.DecimalField(max_digits=14, decimal_places=2)

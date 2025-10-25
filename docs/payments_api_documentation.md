@@ -1,6 +1,6 @@
 # Payments API  — Frontend Integration Guide
 
-This is a complete, self-contained guide for integrating the payments (occasional payments) module. It documents all routes, headers, request/response bodies, enums, pagination, and error shapes.
+This is a complete, self-contained guide for integrating the payments (occasional payments + analytics) module. It documents all routes, headers, request/response bodies, enums, pagination, field meanings, and error shapes.
 
 - Base URL prefix: `/api/`
 - All paths below are relative to the base URL.
@@ -38,6 +38,20 @@ This is a complete, self-contained guide for integrating the payments (occasiona
 | maintenance  | Maintenance |
 | repair       | Repair      |
 | other        | Other       |
+
+---
+
+## Key terms (analytics)
+- "this_month": From the 1st day of the current calendar month until now (server timezone).
+- "all_time": Cumulative from the beginning of data until now.
+- total_before: Total rent before any deductions.
+- total_occasional: Sum of occasional (deductions/expenses) entries.
+- total_after: Net after deductions = total_before − total_occasional.
+- owner_total: The owner's share after deductions, using each unit's `owner_percentage` (as a fraction, e.g., 0.60 for 60%).
+- company_total: What remains for the company after paying the owner = total_after − owner_total.
+
+Decimals are returned as strings (e.g., "150.00").
+
 ---
 
 ## Resource schema: OccasionalPayment
@@ -47,7 +61,7 @@ This is a complete, self-contained guide for integrating the payments (occasiona
 | id             | integer | No       | Yes       | Primary key |
 | unit           | integer | No       | Yes       | Taken from URL path `{unit_id}` when creating/listing. Included in responses. |
 | category       | string  | Yes      | No        | One of OccasionalPaymentCategory |
-| amount         | decimal | Yes      | No        | Send as string (recommended) or number; returned as string (e.g., `"150.00"`). |
+| amount         | decimal | Yes      | No        | Send as string (recommended) or number; returned as string (e.g., "150.00"). |
 | payment_method | string  | Yes      | No        | One of PaymentMethod |
 | payment_date   | date    | No       | No        | `YYYY-MM-DD`; defaults to today if omitted; can be null. |
 | notes          | string  | No       | No        | Optional; can be null. |
@@ -80,14 +94,19 @@ List response wrapper shape:
 
 ## Endpoints overview
 
-| Method | Path                           | Description                                   | Auth | Pagination |
-|--------|--------------------------------|-----------------------------------------------|------|------------|
-| GET    | /payments/{unit_id}/           | List payments for a unit                      | Yes  | Yes        |
-| POST   | /payments/{unit_id}/           | Create a payment for a unit                   | Yes  | No         |
-| GET    | /payments/{unit_id}/{id}/      | Retrieve a specific payment                   | Yes  | No         |
-| PUT    | /payments/{unit_id}/{id}/      | Full update a payment (replace)               | Yes  | No         |
-| PATCH  | /payments/{unit_id}/{id}/      | Partial update of a payment                   | Yes  | No         |
-| DELETE | /payments/{unit_id}/{id}/      | Delete a payment                              | Yes  | No         |
+| Method | Path                                      | Description                                       | Auth | Pagination |
+|--------|-------------------------------------------|---------------------------------------------------|------|------------|
+| GET    | /payments/{unit_id}/                      | List occasional payments for a unit               | Yes  | Yes        |
+| POST   | /payments/{unit_id}/                      | Create an occasional payment for a unit           | Yes  | No         |
+| GET    | /payments/{unit_id}/{id}/                 | Retrieve a specific occasional payment            | Yes  | No         |
+| PUT    | /payments/{unit_id}/{id}/                 | Full update an occasional payment                 | Yes  | No         |
+| PATCH  | /payments/{unit_id}/{id}/                 | Partial update an occasional payment              | Yes  | No         |
+| DELETE | /payments/{unit_id}/{id}/                 | Delete an occasional payment                      | Yes  | No         |
+| GET    | /payments/all/owner/{owner_id}/           | Owner analytics summary (this month + all time)   | Yes  | No         |
+| POST   | /payments/all/owner/{owner_id}/pay/       | Record a payout to owner                          | Yes  | No         |
+| GET    | /payments/all/unit/{unit_id}/             | Unit analytics summary (this month + all time)    | Yes  | No         |
+| GET    | /payments/all/payments/me/                | Company summary (this month + all time)           | Yes  | No         |
+| GET    | /payments/all/payments/me/{unit_id}/      | Company summary for a specific unit               | Yes  | No         |
 
 ---
 
@@ -150,12 +169,7 @@ Response 200 example
 }
 ```
 
-Notes
-- "Last month" means the previous calendar month (e.g., if today is 2025-10-25, last month is 2025-09-01..2025-09-30).
-- Summary fields are emitted per-item but are identical within a given response page as they are unit-level summaries.
-
 Errors
-
 - 401 Unauthorized (missing/invalid token)
 - 403 Forbidden (authenticated but not admin)
 - 404 Not Found (if `unit_id` does not exist)
@@ -181,8 +195,6 @@ Request body
 | payment_method | string  | Yes      | One of PaymentMethod |
 | payment_date   | date    | No       | `YYYY-MM-DD`; defaults to today; can be null |
 | notes          | string  | No       | Optional; can be null |
-
-Note: Do not include `unit` in the body; it is taken from the path and is read-only.
 
 Request example
 
@@ -213,7 +225,6 @@ Response 201 example
 ```
 
 Errors
-
 - 400 Bad Request (validation errors, e.g., invalid enum value)
 - 401 Unauthorized
 - 403 Forbidden
@@ -343,21 +354,276 @@ Errors: 401, 403, 404
 
 ---
 
+## Analytics & payouts endpoints
+
+### 7) Owner analytics summary
+- Method and path: `GET /payments/all/owner/{owner_id}/`
+- Returns totals for a specific owner, including per-unit breakdown.
+
+Path params
+
+| Name     | Type    | Required | Notes                  |
+|----------|---------|----------|------------------------|
+| owner_id | integer | Yes      | The target owner ID.   |
+
+Response body (fields)
+
+| Field                         | Type    | Notes |
+|-------------------------------|---------|-------|
+| owner_id                      | integer | Owner ID |
+| owner_name                    | string  | Owner full name |
+| total_before_this_month       | decimal | Rent total from 1st of this month until now (no deductions) |
+| total_before_all_time         | decimal | Rent total all time (no deductions) |
+| total_occasional_this_month   | decimal | Occasional deductions this month |
+| total_occasional_all_time     | decimal | Occasional deductions all time |
+| total_after_this_month        | decimal | Net this month = before − occasional |
+| total_after_all_time          | decimal | Net all time = before − occasional |
+| owner_total_this_month        | decimal | Owner share this month after deductions |
+| owner_total_all_time          | decimal | Owner share all time after deductions |
+| company_total_this_month      | decimal | Company share this month = net − owner |
+| company_total_all_time        | decimal | Company share all time = net − owner |
+| paid_to_owner_total           | decimal | Sum of all payouts already made to this owner |
+| still_need_to_pay             | decimal | Owner_total_all_time − paid_to_owner_total |
+| units                         | array   | Per-unit breakdown (see below) |
+
+Per-unit breakdown item
+
+| Field                       | Type    | Notes |
+|-----------------------------|---------|-------|
+| unit_id                     | integer | Unit ID |
+| unit_name                   | string  | Unit name |
+| owner_percentage            | decimal | Fraction, e.g., 0.60 for 60% |
+| total_before_all_time       | decimal | Rent total (no deductions) |
+| total_occasional_all_time   | decimal | Deductions total |
+| total_after_all_time        | decimal | Net = before − occasional |
+| owner_total_all_time        | decimal | Owner share after deductions |
+| total_before_this_month     | decimal | Rent this month (no deductions) |
+| total_occasional_this_month | decimal | Deductions this month |
+| total_after_this_month      | decimal | Net this month |
+| owner_total_this_month      | decimal | Owner share this month |
+
+Response 200 example
+
+```json
+{
+  "owner_id": 3,
+  "owner_name": "Ahmed Ali",
+  "total_before_this_month": "25000.00",
+  "total_before_all_time": "180000.00",
+  "total_occasional_this_month": "2000.00",
+  "total_occasional_all_time": "4000.00",
+  "total_after_this_month": "23000.00",
+  "total_after_all_time": "176000.00",
+  "owner_total_this_month": "13800.00",
+  "owner_total_all_time": "105600.00",
+  "company_total_this_month": "9200.00",
+  "company_total_all_time": "70400.00",
+  "paid_to_owner_total": "90000.00",
+  "still_need_to_pay": "15600.00",
+  "units": [
+    {
+      "unit_id": 12,
+      "unit_name": "A-101",
+      "owner_percentage": "0.6000",
+      "total_before_all_time": "100000.00",
+      "total_occasional_all_time": "2000.00",
+      "total_after_all_time": "98000.00",
+      "owner_total_all_time": "58800.00",
+      "total_before_this_month": "10000.00",
+      "total_occasional_this_month": "1000.00",
+      "total_after_this_month": "9000.00",
+      "owner_total_this_month": "5400.00"
+    }
+  ]
+}
+```
+
+Errors
+- 401 Unauthorized, 403 Forbidden, 404 Not Found (owner not found)
+
+---
+
+### 8) Record a payout to owner
+- Method and path: `POST /payments/all/owner/{owner_id}/pay/`
+- Records a manual payout to the owner.
+
+Path params
+
+| Name     | Type    | Required | Notes                |
+|----------|---------|----------|----------------------|
+| owner_id | integer | Yes      | Target owner ID.     |
+
+Request body
+
+| Field       | Type    | Required | Notes |
+|-------------|---------|----------|-------|
+| amount_paid | decimal | Yes      | Amount being paid to the owner |
+| notes       | string  | No       | Optional notes |
+
+Request example
+
+```json
+{
+  "amount_paid": "5000.00",
+  "notes": "Monthly payout for October"
+}
+```
+
+Response 201 example
+
+```json
+{
+  "id": 45,
+  "owner": 3,
+  "date": "2025-10-25T12:30:15.000000Z",
+  "notes": "Monthly payout for October"
+}
+```
+
+Notes
+- `amount_paid` is write-only in the request; the stored amount equals `amount_paid` but is not echoed back.
+- Future owner summary calls will reflect the updated `paid_to_owner_total` and `still_need_to_pay`.
+
+Errors
+- 400 Bad Request (invalid or missing `amount_paid`)
+- 401 Unauthorized, 403 Forbidden, 404 Not Found (owner not found)
+
+---
+
+### 9) Unit analytics summary
+- Method and path: `GET /payments/all/unit/{unit_id}/`
+- Returns rent and deduction breakdown for a specific unit.
+
+Path params
+
+| Name    | Type    | Required | Notes              |
+|---------|---------|----------|--------------------|
+| unit_id | integer | Yes      | The target unit ID |
+
+Response body (fields)
+
+| Field                         | Type    | Notes |
+|-------------------------------|---------|-------|
+| unit_id                       | integer | Unit ID |
+| unit_name                     | string  | Unit name |
+| owner_id                      | integer | Owner ID |
+| owner_name                    | string  | Owner name |
+| owner_percentage              | decimal | Fraction, e.g., 0.60 for 60% |
+| total_before_this_month       | decimal | Rent this month (no deductions) |
+| total_before_all_time         | decimal | Rent all time (no deductions) |
+| total_occasional_this_month   | decimal | Deductions this month |
+| total_occasional_all_time     | decimal | Deductions all time |
+| total_after_this_month        | decimal | Net this month |
+| total_after_all_time          | decimal | Net all time |
+| owner_total_this_month        | decimal | Owner share this month |
+| owner_total_all_time          | decimal | Owner share all time |
+| company_total_this_month      | decimal | Company share this month |
+| company_total_all_time        | decimal | Company share all time |
+
+Response 200 example
+
+```json
+{
+  "unit_id": 12,
+  "unit_name": "A-101",
+  "owner_id": 3,
+  "owner_name": "Ahmed Ali",
+  "owner_percentage": "0.6000",
+  "total_before_this_month": "10000.00",
+  "total_before_all_time": "100000.00",
+  "total_occasional_this_month": "1000.00",
+  "total_occasional_all_time": "2000.00",
+  "total_after_this_month": "9000.00",
+  "total_after_all_time": "98000.00",
+  "owner_total_this_month": "5400.00",
+  "owner_total_all_time": "58800.00",
+  "company_total_this_month": "3600.00",
+  "company_total_all_time": "39200.00"
+}
+```
+
+Errors
+- 401 Unauthorized, 403 Forbidden, 404 Not Found (unit not found)
+
+---
+
+### 10) Company summary ("me")
+- Method and path: `GET /payments/all/payments/me/`
+- Returns company totals across all units (after occasional and after paying owners).
+
+Response 200 example
+
+```json
+{
+  "total_before_this_month": "25000.00",
+  "total_before_all_time": "180000.00",
+  "total_occasional_this_month": "2000.00",
+  "total_occasional_all_time": "4000.00",
+  "total_after_this_month": "23000.00",
+  "total_after_all_time": "176000.00",
+  "owner_total_this_month": "13800.00",
+  "owner_total_all_time": "105600.00",
+  "company_total_this_month": "9200.00",
+  "company_total_all_time": "70400.00"
+}
+```
+
+Errors: 401 Unauthorized, 403 Forbidden
+
+---
+
+### 11) Company summary for a specific unit ("me")
+- Method and path: `GET /payments/all/payments/me/{unit_id}/`
+- Same as company summary but scoped to a single unit.
+
+Path params
+
+| Name    | Type    | Required | Notes              |
+|---------|---------|----------|--------------------|
+| unit_id | integer | Yes      | The target unit ID |
+
+Response 200 example
+
+```json
+{
+  "unit_id": 12,
+  "total_before_this_month": "10000.00",
+  "total_before_all_time": "100000.00",
+  "total_occasional_this_month": "1000.00",
+  "total_occasional_all_time": "2000.00",
+  "total_after_this_month": "9000.00",
+  "total_after_all_time": "98000.00",
+  "owner_total_this_month": "5400.00",
+  "owner_total_all_time": "58800.00",
+  "company_total_this_month": "3600.00",
+  "company_total_all_time": "39200.00"
+}
+```
+
+Errors
+- 401 Unauthorized, 403 Forbidden, 404 Not Found (unit not found)
+
+---
+
 ## Error responses
 
 | Status | Example body |
 |--------|--------------|
-| 400    | `{ "category": ["\"invalid_value\" is not a valid choice."] }` |
+| 400    | `{ "amount_paid": ["This field is required."] }` |
 | 401    | `{ "detail": "Authentication credentials were not provided." }` |
 | 403    | `{ "detail": "You do not have permission to perform this action." }` |
 | 404    | `{ "detail": "Not found." }` |
 
 ---
+
 ## Notes & tips
 
-- Ordering is by `id` ascending; no search or ordering params are exposed on these endpoints.
-- Timestamps are ISO8601 UTC. Parse on the frontend as needed.
-- `unit` is read-only via the API surface and inferred from the path.
-- OpenAPI schema is also available at `/api/schema/`, but this guide is sufficient for payments integration.
+- "this_month" always means from the 1st of the current calendar month until now.
+- Decimals are rendered as strings with two decimals.
+- `owner_percentage` in analytics is a fraction (0.0..1.0) with four decimals.
+- After calling an owner payout (pay endpoint), the next owner summary reflects the new totals.
+- OpenAPI schema is available at `/api/schema/`.
+- Occasional payments CRUD is ordered by `id` ascending; no extra filters are exposed.
+
 ---
 #### **all rights back to bassanthossamxx**
