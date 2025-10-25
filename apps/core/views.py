@@ -1,8 +1,10 @@
 from django.shortcuts import render
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework.response import Response
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAdminUser
+from rest_framework import serializers
 from .serializers import SuperUserLoginSerializer
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
@@ -34,6 +36,9 @@ class LogoutView(APIView):
         try:
             RefreshToken(token).blacklist()
             return Response({"message": "Logged out successfully"}, status=200)
+        except TokenError as e:
+            # Token is invalid, expired or already blacklisted
+            return Response({"error": str(e)}, status=400)
         except Exception:
             return Response({"error": "Invalid token"}, status=400)
 
