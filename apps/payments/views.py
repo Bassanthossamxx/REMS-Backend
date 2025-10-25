@@ -66,10 +66,9 @@ class OwnerPaymentSummaryView(views.APIView):
         # Calculate via utils for clarity and reuse
         summary = pay_utils.calculate_owner_payment_summary(owner_id)
 
-        # Attach payouts history
+        # Attach payouts history as model instances for nested serializer
         history_qs = OwnerPayment.objects.filter(owner=owner).order_by("-date", "-id")
-        history_data = OwnerPaymentReadSerializer(history_qs, many=True).data
-        summary["payments_history"] = history_data
+        summary["payments_history"] = list(history_qs)
 
         serializer = OwnerPaymentSummarySerializer(summary)
         return Response(serializer.data)
